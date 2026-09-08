@@ -23,7 +23,7 @@ define('APP_VERSION', '1.0.0');
  * define('PIXELCUT_API_KEY', 'sk_live_...');
  */
 $envApiKey = getenv('PIXELCUT_API_KEY');
-define('PIXELCUT_API_KEY', !empty($envApiKey) ? $envApiKey : 'sk_e0970a0391c34c94814a4047b3015350');
+define('PIXELCUT_API_KEY', !empty($envApiKey) ? $envApiKey : 'YOUR_PIXELCUT_API_KEY_HERE');
 
 // Pixelcut API Endpoint
 define('PIXELCUT_API_ENDPOINT', 'https://api.developer.pixelcut.ai/v1/remove-background');
