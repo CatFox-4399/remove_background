@@ -1,0 +1,862 @@
+<?php
+/**
+ * ClearCut - Multilingual Language Dictionary & Helper
+ * Supports English (en), Chinese (zh), and Malay (ms)
+ */
+
+// Supported languages
+const SUPPORTED_LANGUAGES = [
+    'en' => [
+        'name' => 'English',
+        'native' => 'English',
+        'flag' => '🇺🇸'
+    ],
+    'zh' => [
+        'name' => 'Chinese',
+        'native' => '简体中文',
+        'flag' => '🇨🇳'
+    ],
+    'ms' => [
+        'name' => 'Malay',
+        'native' => 'Bahasa Melayu',
+        'flag' => '🇲🇾'
+    ]
+];
+
+// Determine active language
+function get_current_language(): string {
+    if (isset($_GET['lang']) && array_key_exists($_GET['lang'], SUPPORTED_LANGUAGES)) {
+        $lang = $_GET['lang'];
+        // Persist preference in cookie for 30 days
+        setcookie('clearcut_lang', $lang, time() + (86400 * 30), '/');
+        return $lang;
+    }
+
+    if (isset($_COOKIE['clearcut_lang']) && array_key_exists($_COOKIE['clearcut_lang'], SUPPORTED_LANGUAGES)) {
+        return $_COOKIE['clearcut_lang'];
+    }
+
+    return 'en';
+}
+
+$currentLang = get_current_language();
+
+$translations = [
+    // =========================================================================
+    // English (en)
+    // =========================================================================
+    'en' => [
+        'meta_desc' => 'ClearCut is a fast, AI-powered image background removal web application using Pixelcut API. Upload any photo to remove backgrounds and download a transparent PNG.',
+        'home' => 'Home',
+        'manual' => 'User Manual',
+        'pwa_install_btn' => 'Install App',
+        'pwa_install_title' => 'Install ClearCut on your desktop or mobile device',
+        'pwa_installed_msg' => 'ClearCut was installed successfully!',
+        'powered_by' => 'Powered by Pixelcut AI API',
+        'hero_title_1' => 'Remove Backgrounds in Seconds with ',
+        'hero_title_highlight' => 'Precision AI',
+        'hero_subtitle' => 'Upload your photos, isolate subjects effortlessly, and download crystal-clear transparent PNG images for e-commerce, profiles, and design.',
+        
+        // Upload dropzone
+        'drop_heading' => 'Drop your image here, or browse',
+        'drop_subtext' => 'Supports high-resolution images up to 15 MB',
+        'choose_image' => 'Choose Image',
+        'format_max' => 'Max 15 MB',
+
+        // Preview card
+        'selected_image' => 'Selected Image',
+        'clear_image' => 'Clear Image',
+        'change_image' => 'Change Image',
+        'btn_remove_bg' => 'Remove Background',
+
+        // Processing
+        'processing_heading' => 'Processing with Pixelcut AI',
+        'processing_note' => 'This usually takes only 3–5 seconds depending on image resolution.',
+        'stage_uploading' => 'Uploading image...',
+        'stage_sending' => 'Sending image to Pixelcut...',
+        'stage_removing' => 'Removing background with AI...',
+        'stage_preparing' => 'Preparing transparent PNG...',
+        'stage_finalizing' => 'Finalizing result...',
+
+        // Result
+        'bg_removed' => 'Background Removed',
+        'png_ready' => 'Transparent PNG Ready',
+        'original_img' => 'Original Image',
+        'result_img' => 'Background Removed',
+        'upload_another' => 'Upload Another',
+        'download_png' => 'Download PNG',
+        'btn_edit_original' => 'Edit Photo (Skip AI)',
+        'btn_edit_result' => 'Edit Cutout',
+
+        // Image Studio & Editor
+        'editor_title' => 'Image Studio & Editor',
+        'studio_core_tools' => 'Standard Tools',
+        'studio_new_features' => 'New Features',
+        'tab_crop' => 'Crop',
+        'tab_rotate' => 'Rotate & Flip',
+        'tab_filters' => 'Filters',
+        'tab_chop_free' => 'Chop & Shapes',
+        'tab_resize' => 'Resize',
+        'tab_vignette' => 'Vignette',
+        'tab_text' => 'Add Words',
+        'aspect_free' => 'Original Ratio',
+        'aspect_1_1' => 'Square (1:1 Cut)',
+        'btn_extrude_square' => 'Extrude to Square (1:1 Stretch)',
+        'extrude_square_hint' => 'Stretches entire picture into a 1:1 square without cutting any edges.',
+        'extrude_square_short' => 'Extrude to 1:1 Square',
+        'extrude_on' => 'ON',
+        'extrude_off' => 'OFF',
+        'aspect_4_3' => 'Landscape (4:3)',
+        'aspect_16_9' => 'Widescreen (16:9)',
+        'aspect_3_4' => 'Portrait (3:4)',
+        'aspect_9_16' => 'Story (9:16)',
+        'shape_chop' => 'Shape Chopper (Any Shape)',
+        'shape_rect' => 'Standard Box',
+        'shape_circle' => 'Circle / Oval',
+        'shape_rounded' => 'Rounded Box',
+        'shape_heart' => 'Heart Shape',
+        'shape_star' => 'Star Badge',
+        'free_crop_label' => 'Chop Free Margin Offsets (%)',
+        'crop_top' => 'Top Cut',
+        'crop_bottom' => 'Bottom Cut',
+        'crop_left' => 'Left Cut',
+        'crop_right' => 'Right Cut',
+        'resize_title' => 'Resize Dimensions (Width & Height)',
+        'width_px' => 'Width (px)',
+        'height_px' => 'Height (px)',
+        'lock_ratio' => 'Lock Aspect Ratio',
+        'scale_presets' => 'Quick Scale',
+        'orig_dim' => 'Original',
+        'rotate_left' => 'Rotate Left (90°)',
+        'rotate_right' => 'Rotate Right (90°)',
+        'flip_h' => 'Flip Horizontal',
+        'flip_v' => 'Flip Vertical',
+        'filter_normal' => 'Normal',
+        'filter_vivid' => 'Vivid',
+        'filter_bw' => 'B&W',
+        'filter_sepia' => 'Sepia',
+        'filter_vintage' => 'Vintage',
+        'filter_warm' => 'Warm',
+        'filter_cool' => 'Cool',
+        'filter_contrast' => 'High Contrast',
+        'filter_vignette' => 'Vignette Preset',
+        'vignette' => 'Vignette Edge Shading',
+        'vignette_panel_desc' => 'Add dark radial shading around photo edges and corners for cinematic focus.',
+        'brightness' => 'Brightness',
+        'contrast' => 'Contrast',
+        'saturation' => 'Saturation',
+        'text_input_label' => 'Add Word / Caption',
+        'text_placeholder' => 'Type your words here...',
+        'font_family' => 'Font Style',
+        'font_sans' => 'Modern Sans',
+        'font_serif' => 'Classic Serif',
+        'font_impact' => 'Bold Impact',
+        'font_cursive' => 'Handwriting / Script',
+        'font_mono' => 'Monospace Code',
+        'font_size' => 'Font Size',
+        'text_color' => 'Word Color',
+        'custom_color' => 'Custom (Any Color)',
+        'text_bold' => 'Bold',
+        'text_italic' => 'Italic',
+        'text_outline' => 'Word Outline',
+        'outline_color' => 'Outline Color',
+        'outline_width' => 'Outline Thickness',
+        'text_glow' => 'Word Glow',
+        'glow_color' => 'Glow Color',
+        'glow_blur' => 'Glow Radius',
+        'text_position' => 'Quick Position',
+        'pos_top' => 'Top',
+        'pos_center' => 'Center',
+        'pos_bottom' => 'Bottom',
+        'drag_hint' => '💡 Tip: Click and drag text on the canvas to place it anywhere!',
+        'btn_apply_editor' => 'Apply to Preview',
+        'btn_download_edited' => 'Download Edited Image',
+        'btn_reset' => 'Reset All',
+        'btn_cancel' => 'Cancel',
+
+        // Feature sections
+        'sec_core_features' => 'Core AI Features',
+        'sec_new_features' => 'New Features: Image Studio',
+        'new_badge' => 'NEW FEATURE',
+        'new_feat_chop_title' => 'Chop Free & Any Shape',
+        'new_feat_chop_desc' => 'Chop any shape you like! Freeform margin sliders plus Circle, Rounded square, Heart, and Star shape masks with transparent surroundings.',
+        'new_feat_resize_title' => 'Resize the Picture',
+        'new_feat_resize_desc' => 'Set exact width and height in pixels with aspect ratio locking or pick quick scaling buttons from 25% up to 200%.',
+        'new_feat_vignette_title' => 'Vignette Edge Shading',
+        'new_feat_vignette_desc' => 'Apply smooth, dark radial corner and edge shading to create focused, dramatic, and cinematic photos.',
+        'new_feat_text_title' => 'Add Words to Picture',
+        'new_feat_text_desc' => 'Add custom words with 5 font styles, live sizing, color palette, outline glow, and drag-and-drop placement directly on the canvas.',
+
+        // Core Feature boxes
+        'feat1_title' => 'Fast & Accurate AI',
+        'feat1_desc' => 'State-of-the-art Pixelcut AI models detect hair, fine edges, and complex backgrounds cleanly within seconds.',
+        'feat2_title' => 'Transparent PNG',
+        'feat2_desc' => 'Every output is converted into a transparent PNG format, ready for graphic design, web design, or printing.',
+        'feat3_title' => 'Private & Secure',
+        'feat3_desc' => 'Uploaded images are securely stored with random identifiers and cleaned up automatically after processing.',
+
+        // Footer
+        'footer_desc' => 'AI-powered image background removal web application built with native PHP 8+ and Pixelcut API.',
+        'footer_nav' => 'Navigation',
+        'footer_powered' => 'Powered By',
+        'footer_copy' => 'ClearCut. Free, fast & private AI background removal for student learning and personal projects.',
+
+        // JS Messages
+        'js_err_no_file' => 'No file was selected.',
+        'js_err_format' => 'Invalid image format. Please select a JPG, JPEG, PNG, WEBP, or GIF image.',
+        'js_err_size' => 'File exceeds the 15 MB limit. Please select a smaller image.',
+        'js_err_empty' => 'The selected image is empty.',
+        'js_err_read' => 'The image could not be read.',
+        'js_err_network' => 'An error occurred while connecting to the server.',
+        'js_err_failed' => 'Background removal failed. Please try again.',
+
+        // Manual Page
+        'manual_badge' => 'Documentation & Guide',
+        'manual_title' => 'ClearCut User Manual',
+        'manual_subtitle' => 'Everything you need to know about using ClearCut, understanding the user interface, supported image formats, and troubleshooting tips.',
+        'sec_overview' => 'Overview',
+        'overview_p1' => 'ClearCut is an intuitive, web-based tool designed to automatically remove backgrounds from photos using cutting-edge artificial intelligence powered by the Pixelcut Background Removal API.',
+        'overview_p2' => 'Designed with student and developer clarity in mind, ClearCut is constructed using lightweight native PHP 8+, PHP cURL, HTML5, modern Vanilla CSS, and Vanilla JavaScript—without the overhead of heavy third-party frameworks or databases. It lets anyone produce studio-quality cutouts with transparent backgrounds in seconds.',
+        
+        'sec_how_to' => 'How to Use ClearCut',
+        'step1_title' => 'Open ClearCut',
+        'step1_desc' => 'Navigate to the ClearCut homepage in any modern browser (Chrome, Firefox, Edge, Safari).',
+        'step2_title' => 'Select an Image',
+        'step2_desc' => 'Drag and drop your image into the dashed upload area or click the Choose Image button to pick a file.',
+        'step3_title' => 'Preview the Image',
+        'step3_desc' => 'Review the image thumbnail, file name, and file size to confirm you selected the intended photo.',
+        'step4_title' => 'Click "Remove Background"',
+        'step4_desc' => 'Click the primary action button to send the image securely to the PHP backend via AJAX.',
+        'step5_title' => 'Image Sent to Pixelcut',
+        'step5_desc' => 'The PHP backend performs security checks (validating MIME type and dimensions) and securely forwards the image to Pixelcut AI.',
+        'step6_title' => 'AI Background Removal',
+        'step6_desc' => 'Pixelcut\'s neural network processes the image, accurately detects the subject, and removes the entire background.',
+        'step7_title' => 'Preview the Result',
+        'step7_desc' => 'Inspect the side-by-side comparison. The transparent checkerboard grid allows you to easily evaluate edge sharpness.',
+        'step8_title' => 'Download Transparent PNG',
+        'step8_desc' => 'Click Download PNG to save the transparent result directly to your device as no-bg.png.',
+
+        'sec_ui' => 'Interface Explanation',
+        'ui_upload_title' => 'Upload Area',
+        'ui_upload_desc' => 'A spacious drag-and-drop zone that accepts images dragged straight from your desktop or file explorer.',
+        'ui_preview_title' => 'Image Preview',
+        'ui_preview_desc' => 'Displays an instant thumbnail of the chosen photo, complete with file metadata (name and size).',
+        'ui_remove_btn_title' => 'Remove Background Button',
+        'ui_remove_btn_desc' => 'The primary action trigger. Enabled only when a valid image has been loaded, disabled during processing.',
+        'ui_status_title' => 'Processing Status',
+        'ui_status_desc' => 'Displays an animated spinner and real-time step descriptions without deceptive fake percentages.',
+        'ui_orig_title' => 'Original Image',
+        'ui_orig_desc' => 'Shows the unaltered source photo for easy visual verification and side-by-side comparison.',
+        'ui_result_title' => 'Result Image',
+        'ui_result_desc' => 'Displays the AI-isolated subject over a subtle dark checkerboard pattern highlighting alpha transparency.',
+        'ui_down_title' => 'Download PNG Button',
+        'ui_down_desc' => 'Triggers a secure direct download of the processed image as no-bg.png with true alpha channel transparency.',
+        'ui_another_title' => 'Upload Another Button',
+        'ui_another_desc' => 'Cleans up the workspace and resets the interface so you can quickly process your next photo.',
+        'ui_studio_btn_title' => 'Image Studio (Edit & Skip AI)',
+        'ui_studio_btn_desc' => 'Opens the built-in canvas studio to crop aspect ratios, rotate, flip, and apply visual filters to either the original photo or the cutout.',
+
+        'sec_studio' => 'Image Studio: Resizing, Shapes, Vignette & Text',
+        'studio_p1' => 'ClearCut comes with a full-featured client-side Image Studio! You can crop images to standard aspect ratios (1:1 square, 4:3 landscape, 16:9 widescreen, 3:4 portrait, 9:16 story), rotate 90° left or right, flip horizontally and vertically, and apply aesthetic color filters (Vivid, B&W, Sepia, Vintage, Warm, Cool, High Contrast, Vignette) along with fine-tuning sliders for Brightness, Contrast, Saturation, and Vignette Edge Shading.',
+        'studio_p2' => 'Advanced Freeform & Shape Chopping: Free yourself from fixed ratios! Use the Freeform Chop margin sliders to cut off any border percentages, or choose custom shape masks like Circle / Oval, Rounded Box, Heart Shape, or Star Badge with crisp transparent cutout borders.',
+        'studio_p3' => 'Resizing & Text Overlay: Easily scale your image to exact Width and Height pixels with automatic aspect ratio locking, or pick quick scale buttons (25% to 200%). Add customized words and captions to your photo with 5 typography styles (Modern Sans, Classic Serif, Bold Impact, Handwriting Script, Monospace), adjustable font sizes, full color palette with quick swatches, outline glow, and drag-and-drop text positioning directly on the canvas!',
+
+        'sec_formats' => 'Supported Formats & Limits',
+        'formats_p1' => 'ClearCut supports common web and photography image formats: JPG, JPEG, PNG, WEBP, and GIF.',
+        'formats_p2' => 'Maximum File Size: 15 MB. Files exceeding this limit are blocked immediately on both client and server side.',
+
+        'sec_tips' => 'Tips for Best AI Results',
+        'tip1_title' => 'Use High-Resolution Images',
+        'tip1_desc' => 'Crisp, sharp images allow the AI model to accurately outline hair strands, intricate jewelry, and delicate contours.',
+        'tip2_title' => 'Clear Subject Contrast',
+        'tip2_desc' => 'Photos where the foreground subject contrasts clearly with the backdrop produce the cleanest and most accurate cutouts.',
+        'tip3_title' => 'Avoid Motion Blur',
+        'tip3_desc' => 'Heavy motion blur or out-of-focus subjects make it harder for edge detection models to separate foreground from background.',
+        'tip4_title' => 'Single or Clustered Subjects',
+        'tip4_desc' => 'ClearCut excels with portrait photography, e-commerce products, fashion models, automobiles, and pet photos.',
+
+        'sec_faq' => 'Frequently Asked Questions (FAQ)',
+        'faq1_q' => 'Which image formats are supported?',
+        'faq1_a' => 'ClearCut accepts JPG, JPEG, PNG, WEBP, and GIF images. The output result is always delivered as a transparent PNG.',
+        'faq2_q' => 'What is the maximum file size?',
+        'faq2_a' => 'The maximum allowed file size is 15 MB. Files exceeding 15 MB will trigger a user-friendly error message.',
+        'faq_studio_q' => 'Can I edit and download photos without removing the background?',
+        'faq_studio_a' => 'Yes! ClearCut provides an "Edit Photo (Skip AI)" button directly on the preview card. You can crop shapes, rotate, flip, and apply filters to your original photo, then click "Download Edited Image" to save it without calling the AI or using API credits.',
+        'faq3_q' => 'Why does processing take time?',
+        'faq3_a' => 'When you click "Remove Background", your image is uploaded, sent to Pixelcut\'s cloud neural networks, processed pixel-by-pixel, and returned as a PNG. This typically takes 3 to 6 seconds.',
+        'faq4_q' => 'Why does the first request take slightly longer?',
+        'faq4_a' => 'The initial request initializes SSL handshakes and network routing with Pixelcut API servers. Subsequent requests within the same session are generally faster.',
+        'faq5_q' => 'What happens if the Pixelcut API fails or is unavailable?',
+        'faq5_a' => 'If Pixelcut encounters an issue or your API key is invalid, ClearCut will catch the error, clean up temporary upload files immediately, and display a helpful banner without exposing sensitive traces.',
+        'faq6_q' => 'Why is the result transparent?',
+        'faq6_a' => 'The output is encoded as an RGBA PNG with an alpha channel. The background pixels have their opacity set to zero (0), making it effortless to superimpose your cutout onto any color or backdrop.',
+        'faq7_q' => 'How do I download the result?',
+        'faq7_a' => 'Once processing completes, click the green Download PNG button. Your browser will save the file as no-bg.png.',
+        'faq8_q' => 'Is my Pixelcut API key visible to users?',
+        'faq8_a' => 'No! The API key is stored exclusively on the server in config.php or within server environment variables. It is never transmitted to the browser, JavaScript code, or HTML markup.'
+    ],
+
+    // =========================================================================
+    // Chinese (zh) - 简体中文
+    // =========================================================================
+    'zh' => [
+        'meta_desc' => 'ClearCut 是一款基于 Pixelcut API 的快速 AI 智能图像背景抠图去除工具。上传任意照片，一键去除背景并下载透明 PNG 图片。',
+        'home' => '首页',
+        'manual' => '使用指南',
+        'pwa_install_btn' => '安装应用',
+        'pwa_install_title' => '将 ClearCut 安装至桌面或手机主屏幕',
+        'pwa_installed_msg' => 'ClearCut 应用安装成功！',
+        'powered_by' => '基于 Pixelcut AI API 驱动',
+        'hero_title_1' => '数秒内使用 ',
+        'hero_title_highlight' => '精准 AI',
+        'hero_subtitle' => '上传您的照片，轻松抠出主体，下载高清透明 PNG 图片，适用于电商产品、个人头像、海报及设计。',
+        
+        // Upload dropzone
+        'drop_heading' => '拖放图片到此处，或点击浏览',
+        'drop_subtext' => '支持高达 15 MB 的高清图片',
+        'choose_image' => '选择图片',
+        'format_max' => '最大 15 MB',
+
+        // Preview card
+        'selected_image' => '已选图片',
+        'clear_image' => '清除图片',
+        'change_image' => '更换图片',
+        'btn_remove_bg' => '开始去除背景',
+
+        // Processing
+        'processing_heading' => 'Pixelcut AI 正在处理中',
+        'processing_note' => '通常仅需 3 至 5 秒，取决于图片的分辨率。',
+        'stage_uploading' => '正在上传图片...',
+        'stage_sending' => '正在发送至 Pixelcut 智能服务器...',
+        'stage_removing' => 'AI 正在精准抠图去除背景...',
+        'stage_preparing' => '正在生成高清透明 PNG...',
+        'stage_finalizing' => '处理完成，正在加载结果...',
+
+        // Result
+        'bg_removed' => '背景已成功去除',
+        'png_ready' => '透明 PNG 已就绪',
+        'original_img' => '原图预览',
+        'result_img' => '抠图结果 (透明背景)',
+        'upload_another' => '上传另一张',
+        'download_png' => '下载 PNG 图片',
+        'btn_edit_original' => '编辑原图 (跳过抠图)',
+        'btn_edit_result' => '编辑抠图',
+
+        // Image Studio & Editor (ZH)
+        'editor_title' => '图片编辑工作台',
+        'studio_core_tools' => '常规工具',
+        'studio_new_features' => '全新功能',
+        'tab_crop' => '比例裁剪',
+        'tab_rotate' => '旋转翻转',
+        'tab_filters' => '滤镜调色',
+        'tab_chop_free' => '自由剪裁',
+        'tab_resize' => '尺寸调整',
+        'tab_vignette' => '暗角阴影',
+        'tab_text' => '文字排版',
+        'aspect_free' => '原始比例',
+        'aspect_1_1' => '正方形 (1:1 裁剪)',
+        'btn_extrude_square' => '画面拉伸为正方形 (1:1)',
+        'extrude_square_hint' => '将整张长图或短图完整拉伸挤压为 1:1 正方形，不裁剪任何画面。',
+        'extrude_square_short' => '拉伸为 1:1 正方形',
+        'extrude_on' => '已开启',
+        'extrude_off' => '关闭',
+        'aspect_4_3' => '横幅 (4:3)',
+        'aspect_16_9' => '宽屏 (16:9)',
+        'aspect_3_4' => '竖版 (3:4)',
+        'aspect_9_16' => '全屏竖版 (9:16)',
+        'shape_chop' => '自由形状遮罩 (任意形状)',
+        'shape_rect' => '常规矩形',
+        'shape_circle' => '圆形 / 椭圆',
+        'shape_rounded' => '圆角矩形',
+        'shape_heart' => '心形剪裁',
+        'shape_star' => '五角星徽章',
+        'free_crop_label' => '自由边缘修剪百分比 (%)',
+        'crop_top' => '裁切上方',
+        'crop_bottom' => '裁切下方',
+        'crop_left' => '裁切左侧',
+        'crop_right' => '裁切右侧',
+        'resize_title' => '调整图片分辨率 (宽与高)',
+        'width_px' => '宽度 (像素)',
+        'height_px' => '高度 (像素)',
+        'lock_ratio' => '锁定宽高比',
+        'scale_presets' => '快捷缩放',
+        'orig_dim' => '原始尺寸',
+        'rotate_left' => '向左旋转 (90°)',
+        'rotate_right' => '向右旋转 (90°)',
+        'flip_h' => '水平翻转',
+        'flip_v' => '垂直翻转',
+        'filter_normal' => '原片',
+        'filter_vivid' => '鲜艳',
+        'filter_bw' => '黑白',
+        'filter_sepia' => '复古褐色',
+        'filter_vintage' => '老照片',
+        'filter_warm' => '暖色调',
+        'filter_cool' => '冷色调',
+        'filter_contrast' => '高对比',
+        'filter_vignette' => '暗角预设',
+        'vignette' => '暗角明暗程度',
+        'vignette_panel_desc' => '在图片四周边缘和四角添加柔和暗角阴影，凸显画面中心主体。',
+        'brightness' => '亮度',
+        'contrast' => '对比度',
+        'saturation' => '饱和度',
+        'text_input_label' => '添加文字 / 标语',
+        'text_placeholder' => '在此输入要添加的文字...',
+        'font_family' => '字体风格',
+        'font_sans' => '现代无衬线 (Sans)',
+        'font_serif' => '优雅衬线 (Serif)',
+        'font_impact' => '醒目粗体 (Impact)',
+        'font_cursive' => '手写艺术体 (Script)',
+        'font_mono' => '等宽代码体 (Mono)',
+        'font_size' => '文字字号',
+        'text_color' => '文字颜色 (填充)',
+        'custom_color' => '自定义取色 (任意颜色)',
+        'text_bold' => '粗体加粗',
+        'text_italic' => '斜体',
+        'text_outline' => '文字描边 (轮廓)',
+        'outline_color' => '描边颜色',
+        'outline_width' => '描边粗细',
+        'text_glow' => '霓虹发光 (光晕)',
+        'glow_color' => '发光颜色',
+        'glow_blur' => '发光扩散半径',
+        'text_position' => '快速对齐',
+        'pos_top' => '顶部',
+        'pos_center' => '居中',
+        'pos_bottom' => '底部',
+        'drag_hint' => '💡 提示：按住画布上的文字即可自由拖动到任意位置！',
+        'btn_apply_editor' => '应用修改',
+        'btn_download_edited' => '直接下载编辑后的图片',
+        'btn_reset' => '全部重置',
+        'btn_cancel' => '取消',
+
+        // Feature sections
+        'sec_core_features' => '核心 AI 抠图功能',
+        'sec_new_features' => '最新功能：图片编辑工坊',
+        'new_badge' => '最新功能',
+        'new_feat_chop_title' => '自由裁剪与任意形状',
+        'new_feat_chop_desc' => '随心裁剪任意形状！自由边缘修剪滑块，搭配圆形、圆角、心形、星形创意遮罩，周围自动透明留白。',
+        'new_feat_resize_title' => '图片尺寸分辨率调整',
+        'new_feat_resize_desc' => '按像素精确调整宽度与高度，支持宽高比自动锁定，亦可选择 25% 至 200% 快捷倍率缩放。',
+        'new_feat_vignette_title' => '暗角边缘阴影滤镜',
+        'new_feat_vignette_desc' => '在照片四周渲染柔和的暗角径向暗影，赋予照片电影质感并聚焦视觉中心。',
+        'new_feat_text_title' => '图片文字排版添加',
+        'new_feat_text_desc' => '自由添加文字标语，提供 5 种精选字体、字号调节、丰富色板、描边发光阴影，支持画布上任意拖动定位。',
+
+        // Core Feature boxes
+        'feat1_title' => '快速且高精度 AI',
+        'feat1_desc' => '先进的 Pixelcut AI 模型能在数秒内精确识别发丝、微细边缘和复杂背景。',
+        'feat2_title' => '透明 PNG 输出',
+        'feat2_desc' => '每个输出文件均为透明 PNG 格式，可直接用于平面设计、网页制作或印刷。',
+        'feat3_title' => '私密且安全',
+        'feat3_desc' => '上传的图片均使用加密随机文件名存储，并在抠图处理完成后自动安全清理。',
+
+        // Footer
+        'footer_desc' => '基于原生 PHP 8+ 和 Pixelcut API 构建的 AI 智能图像背景抠图去除 Web 应用。',
+        'footer_nav' => '快速导航',
+        'footer_powered' => '核心驱动',
+        'footer_copy' => 'ClearCut。为学生学习与个人项目打造的免费、快速、安全的 AI 抠图工具。',
+
+        // JS Messages
+        'js_err_no_file' => '请先选择一张图片。',
+        'js_err_format' => '不支持的图片格式。请选择 JPG、JPEG、PNG、WEBP 或 GIF 图片。',
+        'js_err_size' => '图片文件超过 15 MB 上限，请选择较小的图片。',
+        'js_err_empty' => '所选图片文件为空。',
+        'js_err_read' => '无法读取该图片文件。',
+        'js_err_network' => '连接服务器时发生错误，请稍后重试。',
+        'js_err_failed' => '去除背景失败，请检查网络或稍后再试。',
+
+        // Manual Page
+        'manual_badge' => '文档与操作指南',
+        'manual_title' => 'ClearCut 用户手册',
+        'manual_subtitle' => '关于使用 ClearCut 的完整指南，涵盖界面说明、支持格式、抠图技巧及常见疑问解答。',
+        'sec_overview' => '项目简介',
+        'overview_p1' => 'ClearCut 是一款直观便捷的 Web 应用程序，利用由 Pixelcut Background Removal API 驱动的顶尖人工智能算法，自动快速去除照片背景。',
+        'overview_p2' => 'ClearCut 专为学生和开发者学习设计，基于原生 PHP 8+、PHP cURL、HTML5、纯 CSS 与原生 JavaScript 开发，无任何繁重的第三方框架或数据库依赖，让每个人都能轻松制作影棚级透明抠图。',
+        
+        'sec_how_to' => '如何使用 ClearCut',
+        'step1_title' => '打开 ClearCut',
+        'step1_desc' => '在任何现代浏览器（Chrome、Firefox、Edge、Safari）中打开 ClearCut 首页。',
+        'step2_title' => '选择图片',
+        'step2_desc' => '将图片拖放到虚线上传区域，或点击“选择图片”按钮从电脑或手机中选取文件。',
+        'step3_title' => '预览图片',
+        'step3_desc' => '查看图片缩略图、文件名及文件大小，确认选取无误。',
+        'step4_title' => '点击“开始去除背景”',
+        'step4_desc' => '点击主操作按钮，JavaScript 将通过 AJAX 将图片安全发送至 PHP 后端。',
+        'step5_title' => '图片转发至 Pixelcut',
+        'step5_desc' => 'PHP 后端验证图片 MIME 类型与尺寸安全性，随后通过 cURL 安全传输至 Pixelcut AI 云端。',
+        'step6_title' => 'AI 自动抠图',
+        'step6_desc' => 'Pixelcut 神经网络精准识别人像或物品主体，完整剔除背景像素。',
+        'step7_title' => '预览抠图效果',
+        'step7_desc' => '通过原图与抠图左右对比查看效果。独特的暗色棋盘格背景可直观检验边缘与发丝质量。',
+        'step8_title' => '下载透明 PNG',
+        'step8_desc' => '点击“下载 PNG 图片”按钮，即可将透明抠图文件以 no-bg.png 保存到本地。',
+
+        'sec_ui' => '界面元素说明',
+        'ui_upload_title' => '上传拖放区',
+        'ui_upload_desc' => '宽敞的拖放交互区，支持将桌面图片直接拖入，或点击浏览文件。',
+        'ui_preview_title' => '图片预览卡片',
+        'ui_preview_desc' => '在提交上传前即时显示所选图片的缩略图、文件名与容量信息。',
+        'ui_remove_btn_title' => '去除背景按钮',
+        'ui_remove_btn_desc' => '核心操作按钮。仅在选定有效图片后激活，处理过程中自动锁定防止重复提交。',
+        'ui_status_title' => '处理状态提示',
+        'ui_status_desc' => '以真实阶段（上传、通信、抠图、生成）提示当前操作，杜绝虚假百分比进度条。',
+        'ui_orig_title' => '原图对比区',
+        'ui_orig_desc' => '展示未经处理的原始照片，方便与抠图效果并列对照。',
+        'ui_result_title' => '抠图结果区',
+        'ui_result_desc' => '在深色棋盘格网格上方展示 AI 抠出的透明成果，背景透明效果清晰可见。',
+        'ui_down_title' => '下载 PNG 按钮',
+        'ui_down_desc' => '安全触发下载，保留完整的 Alpha 透明通道，文件名默认为 no-bg.png。',
+        'ui_another_title' => '上传另一张按钮',
+        'ui_another_desc' => '一键重置当前视图，清理已上传文件，便于继续处理下一张图片。',
+        'ui_studio_btn_title' => '图片编辑工坊（免抠图直接编辑）',
+        'ui_studio_btn_desc' => '打开内置交互式 Canvas 编辑器，自由裁剪尺寸比例、90°旋转、水平/垂直翻转并应用艺术滤镜。',
+
+        'sec_studio' => '图片编辑工坊：尺寸重设、自由形状遮罩、暗角与文字',
+        'studio_p1' => 'ClearCut 内置了功能全面的纯前端 Canvas 图片编辑工坊！支持常用宽高比裁剪（1:1 正方形、4:3 横屏、16:9 宽屏、3:4 竖屏、9:16 故事屏），90°向左/向右旋转、水平与垂直镜像翻转，以及 8 种精美滤镜（生动、黑白、复古、典雅、暖色、冷色、高对比、暗角）与亮度、对比度、饱和度及暗角明暗滑块。',
+        'studio_p2' => '自由边缘修剪与形状遮罩：摆脱固定比例束缚！使用自由修剪滑块可自由裁去上下左右任意边缘百分比；更可一键应用圆形/椭圆、圆角矩形、爱心形、五角星徽章等创意形状遮罩，四周自动透明留白。',
+        'studio_p3' => '尺寸像素调整与图文排版：可自由输入宽度和高度像素并开启宽高比锁定，或使用快捷缩放（25%至200%）。支持直接在画面上添加自定义文字，提供 5 种精选字体风格、字号滑块、全色调色板与预设色块、高光阴影轮廓，并在画布上按住即可随心拖拽定位！',
+
+        'sec_formats' => '支持的图片格式与限制',
+        'formats_p1' => 'ClearCut 支持主流网络与摄影图片格式：JPG、JPEG、PNG、WEBP 和 GIF。',
+        'formats_p2' => '最大文件限制：15 MB。超过此大小的图片将在客户端与服务端被双重拦截以保障性能。',
+
+        'sec_tips' => '获得最佳抠图效果的技巧',
+        'tip1_title' => '使用高清晰度照片',
+        'tip1_desc' => '清晰、锐利的照片能让 AI 算法更好地描绘发丝、饰品边缘和衣物细节。',
+        'tip2_title' => '主体与背景反差明显',
+        'tip2_desc' => '前景主体与背景色彩对比度高的照片，抠图边缘将格外干净规整。',
+        'tip3_title' => '避免严重的运动模糊',
+        'tip3_desc' => '镜头晃动严重或主体失焦的模糊图片会增加边缘检测难度。',
+        'tip4_title' => '单人像或特定主体',
+        'tip4_desc' => 'ClearCut 极度擅长处理单人人像、电商产品、服装模特、汽车与宠物照片。',
+
+        'sec_faq' => '常见问题解答 (FAQ)',
+        'faq1_q' => '支持哪些图片格式？',
+        'faq1_a' => 'ClearCut 支持 JPG、JPEG、PNG、WEBP 和 GIF 格式图片。处理完成后的输出统一为透明 PNG 格式。',
+        'faq2_q' => '允许的最大文件大小是多少？',
+        'faq2_a' => '最大限制为 15 MB。超过 15 MB 的文件会被系统拦截并弹出友好提示。',
+        'faq_studio_q' => '我可以直接编辑原图而不去除背景吗？',
+        'faq_studio_a' => '完全可以！在预览卡片上点击“编辑照片（跳过 AI）”，即可直接对原图进行形状裁剪、旋转翻转和滤镜调色，并随时点击“下载已编辑图片”保存，无需调用 AI，也不消耗任何 API 额度。',
+        'faq3_q' => '为什么处理需要几秒钟？',
+        'faq3_a' => '点击“开始去除背景”后，图片需上传至服务器、转交 Pixelcut 云端神经网络进行像素级深度推断，并重新下载打包为 PNG，全程通常需要 3 至 6 秒。',
+        'faq4_q' => '为什么首次请求耗时略长？',
+        'faq4_a' => '首次请求需要与 Pixelcut API 服务器完成 SSL 握手与路由建立，同一会话内的后续请求速度通常更快。',
+        'faq5_q' => '如果 Pixelcut API 请求失败会怎样？',
+        'faq5_a' => '若网络中断或 API 密钥无效，ClearCut 会捕获异常，立即清理临时文件并显示简明友好的错误提示，绝不会泄露敏感技术堆栈。',
+        'faq6_q' => '为什么输出图片具有透明背景？',
+        'faq6_a' => '输出文件编码为具有 Alpha 通道的 RGBA PNG 格式，原背景像素透明度被设置为 0，可直接在剪映、Photoshop、PPT 中自由合成。',
+        'faq7_q' => '如何下载抠图结果？',
+        'faq7_a' => '处理完成后，直接点击绿色的“下载 PNG 图片”按钮，浏览器将自动保存为 no-bg.png。',
+        'faq8_q' => '用户或访客能看到我的 Pixelcut API 密钥吗？',
+        'faq8_a' => '绝不可能！API 密钥仅存储在服务端 config.php 或服务器环境变量中，不会被发送至前端浏览器、JS 代码或 HTML 标记中。'
+    ],
+
+    // =========================================================================
+    // Malay (ms) - Bahasa Melayu
+    // =========================================================================
+    'ms' => [
+        'meta_desc' => 'ClearCut ialah aplikasi web pembuangan latar belakang imej AI menggunakan Pixelcut API. Muat naik foto, buang latar belakang dan muat turun PNG lutsinar.',
+        'home' => 'Laman Utama',
+        'manual' => 'Panduan Pengguna',
+        'pwa_install_btn' => 'Pasang Aplikasi',
+        'pwa_install_title' => 'Pasang ClearCut pada desktop atau telefon pintar anda',
+        'pwa_installed_msg' => 'ClearCut berjaya dipasang!',
+        'powered_by' => 'Dikuasakan oleh Pixelcut AI API',
+        'hero_title_1' => 'Buang Latar Belakang Pantas dengan ',
+        'hero_title_highlight' => 'AI Berketepatan Tinggi',
+        'hero_subtitle' => 'Muat naik foto anda, asingkan subjek dengan mudah, dan muat turun imej PNG lutsinar berkualiti tinggi untuk e-dagang, profil, dan reka bentuk.',
+        
+        // Upload dropzone
+        'drop_heading' => 'Lepaskan imej di sini, atau semak imbas',
+        'drop_subtext' => 'Menyokong imej beresolusi tinggi sehingga 15 MB',
+        'choose_image' => 'Pilih Imej',
+        'format_max' => 'Maks 15 MB',
+
+        // Preview card
+        'selected_image' => 'Imej Dipilih',
+        'clear_image' => 'Kosongkan Imej',
+        'change_image' => 'Tukar Imej',
+        'btn_remove_bg' => 'Buang Latar Belakang',
+
+        // Processing
+        'processing_heading' => 'Sedang Diproses dengan Pixelcut AI',
+        'processing_note' => 'Biasanya mengambil masa hanya 3–5 saat bergantung kepada resolusi imej.',
+        'stage_uploading' => 'Memuat naik imej...',
+        'stage_sending' => 'Menghantar imej ke Pixelcut...',
+        'stage_removing' => 'Membuang latar belakang dengan AI...',
+        'stage_preparing' => 'Menyediakan fail PNG lutsinar...',
+        'stage_finalizing' => 'Menyelesaikan hasil akhir...',
+
+        // Result
+        'bg_removed' => 'Latar Belakang Berjaya Dibuang',
+        'png_ready' => 'PNG Lutsinar Sedia',
+        'original_img' => 'Imej Asal',
+        'result_img' => 'Latar Belakang Dibuang',
+        'upload_another' => 'Muat Naik Lain',
+        'download_png' => 'Muat Turun PNG',
+        'btn_edit_original' => 'Sunting Foto (Langkau AI)',
+        'btn_edit_result' => 'Sunting Hasil',
+
+        // Image Studio & Editor (MS)
+        'editor_title' => 'Studio & Penyunting Imej',
+        'studio_core_tools' => 'Alatan Asas',
+        'studio_new_features' => 'Ciri Baharu',
+        'tab_crop' => 'Potong',
+        'tab_rotate' => 'Putar & Balik',
+        'tab_filters' => 'Penapis',
+        'tab_chop_free' => 'Bentuk & Potong',
+        'tab_resize' => 'Ubah Saiz',
+        'tab_vignette' => 'Vignet',
+        'tab_text' => 'Tambah Teks',
+        'aspect_free' => 'Nisbah Asal',
+        'aspect_1_1' => 'Segi Empat (1:1 Potong)',
+        'btn_extrude_square' => 'Regang ke Segi Empat (1:1)',
+        'extrude_square_hint' => 'Meregangkan gambar panjang atau pendek menjadi segi empat 1:1 tanpa memotong sebarang bahagian.',
+        'extrude_square_short' => 'Regang ke Segi Empat 1:1',
+        'extrude_on' => 'HIDUP',
+        'extrude_off' => 'PADAM',
+        'aspect_4_3' => 'Landskap (4:3)',
+        'aspect_16_9' => 'Skrin Lebar (16:9)',
+        'aspect_3_4' => 'Potret (3:4)',
+        'aspect_9_16' => 'Cerita (9:16)',
+        'shape_chop' => 'Topeng Bentuk (Sebarang Bentuk)',
+        'shape_rect' => 'Kotak Biasa',
+        'shape_circle' => 'Bulatan / Bujur',
+        'shape_rounded' => 'Kotak Melengkung',
+        'shape_heart' => 'Bentuk Hati',
+        'shape_star' => 'Lencana Bintang',
+        'free_crop_label' => 'Peratusan Potong Tepi Bebas (%)',
+        'crop_top' => 'Potong Atas',
+        'crop_bottom' => 'Potong Bawah',
+        'crop_left' => 'Potong Kiri',
+        'crop_right' => 'Potong Kanan',
+        'resize_title' => 'Ubah Dimensi Imej (Lebar & Tinggi)',
+        'width_px' => 'Lebar (px)',
+        'height_px' => 'Tinggi (px)',
+        'lock_ratio' => 'Kunci Nisbah Aspek',
+        'scale_presets' => 'Skala Pantas',
+        'orig_dim' => 'Asal',
+        'rotate_left' => 'Putar Kiri (90°)',
+        'rotate_right' => 'Putar Kanan (90°)',
+        'flip_h' => 'Balik Mendatar',
+        'flip_v' => 'Balik Menegak',
+        'filter_normal' => 'Biasa',
+        'filter_vivid' => 'Terang',
+        'filter_bw' => 'Hitam Putih',
+        'filter_sepia' => 'Sepia',
+        'filter_vintage' => 'Klasik',
+        'filter_warm' => 'Hangat',
+        'filter_cool' => 'Sejuk',
+        'filter_contrast' => 'Kontras Tinggi',
+        'filter_vignette' => 'Pratetap Vignet',
+        'vignette' => 'Keamatan Vignet Gelap Tepi',
+        'vignette_panel_desc' => 'Tambah bayang vignet gelap bulat di sekeliling tepi foto untuk tumpuan sinematik.',
+        'brightness' => 'Kecerahan',
+        'contrast' => 'Kontras',
+        'saturation' => 'Ketepuan',
+        'text_input_label' => 'Tambah Teks / Kapsyen',
+        'text_placeholder' => 'Taip perkataan anda di sini...',
+        'font_family' => 'Gaya Tulisan',
+        'font_sans' => 'Moden Tanpa Serip (Sans)',
+        'font_serif' => 'Klasik Berserip (Serif)',
+        'font_impact' => 'Tebal Menyerlah (Impact)',
+        'font_cursive' => 'Tulisan Tangan / Kursif (Script)',
+        'font_mono' => 'Kod Monoruang (Mono)',
+        'font_size' => 'Saiz Fon',
+        'text_color' => 'Warna Teks (Isi)',
+        'custom_color' => 'Warna Tersuai (Sebarang)',
+        'text_bold' => 'Tebal',
+        'text_italic' => 'Condong',
+        'text_outline' => 'Garis Luar Teks (Outline)',
+        'outline_color' => 'Warna Garis Luar',
+        'outline_width' => 'Ketebalan Garis Luar',
+        'text_glow' => 'Cahaya Teks (Glow)',
+        'glow_color' => 'Warna Cahaya Glow',
+        'glow_blur' => 'Jejari Cahaya Glow',
+        'text_position' => 'Kedudukan Pantas',
+        'pos_top' => 'Atas',
+        'pos_center' => 'Tengah',
+        'pos_bottom' => 'Bawah',
+        'drag_hint' => '💡 Petua: Tekan dan seret teks pada kanvas untuk meletakkannya di mana-mana sahaja!',
+        'btn_apply_editor' => 'Gunakan Kesan',
+        'btn_download_edited' => 'Muat Turun Imej Disunting',
+        'btn_reset' => 'Set Semula Semua',
+        'btn_cancel' => 'Batal',
+
+        // Feature sections
+        'sec_core_features' => 'Ciri Utama Pembuangan AI',
+        'sec_new_features' => 'Ciri Baharu: Studio Imej',
+        'new_badge' => 'CIRI BAHARU',
+        'new_feat_chop_title' => 'Potong Bebas & Sebarang Bentuk',
+        'new_feat_chop_desc' => 'Potong sebarang bentuk yang anda suka! Peluncur tepi bebas berserta topeng bentuk Bulatan, Hati, Bintang, dan Kotak Melengkung.',
+        'new_feat_resize_title' => 'Ubah Dimensi Imej',
+        'new_feat_resize_desc' => 'Tetapkan piksel lebar dan tinggi dengan kunci nisbah aspek, atau pilih butang skala pantas dari 25% hingga 200%.',
+        'new_feat_vignette_title' => 'Bayang Gelap Tepi Vignet',
+        'new_feat_vignette_desc' => 'Gunakan kesan vignet gelap bulat di sekeliling sudut foto untuk mencipta hasil foto sinematik yang dramatik.',
+        'new_feat_text_title' => 'Tambah Teks & Tipografi',
+        'new_feat_text_desc' => 'Tambah teks dengan 5 gaya fon, pelaras saiz masa nyata, palet warna, garis bercahaya, dan seret bebas pada kanvas.',
+
+        // Core Feature boxes
+        'feat1_title' => 'Pantas & Tepat dengan AI',
+        'feat1_desc' => 'Model Pixelcut AI terkini mengesan rambut, tepi halus dan latar belakang kompleks dalam beberapa saat.',
+        'feat2_title' => 'Format PNG Lutsinar',
+        'feat2_desc' => 'Setiap hasil ditukar ke format PNG dengan ketelusan penuh, sedia untuk reka bentuk grafik atau cetakan.',
+        'feat3_title' => 'Peribadi & Selamat',
+        'feat3_desc' => 'Imej yang dimuat naik disimpan secara selamat dengan pengecam rawak dan dipadam secara automatik selepas diproses.',
+
+        // Footer
+        'footer_desc' => 'Aplikasi web pembuangan latar belakang imej berkuasa AI dibina dengan PHP 8+ asli dan Pixelcut API.',
+        'footer_nav' => 'Navigasi',
+        'footer_powered' => 'Dikuasakan Oleh',
+        'footer_copy' => 'ClearCut. Pembuang latar belakang AI percuma, pantas & selamat untuk pembelajaran pelajar dan projek peribadi.',
+
+        // JS Messages
+        'js_err_no_file' => 'Tiada fail dipilih.',
+        'js_err_format' => 'Format imej tidak sah. Sila pilih imej JPG, JPEG, PNG, WEBP, atau GIF.',
+        'js_err_size' => 'Fail melebihi had 15 MB. Sila pilih imej yang lebih kecil.',
+        'js_err_empty' => 'Fail imej yang dipilih adalah kosong.',
+        'js_err_read' => 'Imej tidak dapat dibaca.',
+        'js_err_network' => 'Ralat berlaku semasa menyambung ke pelayan.',
+        'js_err_failed' => 'Pembuangan latar belakang gagal. Sila cuba lagi.',
+
+        // Manual Page
+        'manual_badge' => 'Dokumentasi & Panduan',
+        'manual_title' => 'Manual Pengguna ClearCut',
+        'manual_subtitle' => 'Semua yang anda perlu tahu tentang ClearCut, penjelasan antaramuka, format imej yang disokong, dan petua penyelesaian masalah.',
+        'sec_overview' => 'Gambaran Keseluruhan',
+        'overview_p1' => 'ClearCut ialah aplikasi web intuitif yang direka untuk membuang latar belakang foto secara automatik menggunakan kecerdasan buatan termaju daripada Pixelcut Background Removal API.',
+        'overview_p2' => 'Direka khusus untuk pembelajaran pelajar dan pemaju web, ClearCut dibina menggunakan PHP 8+ asli, PHP cURL, HTML5, Vanilla CSS dan Vanilla JavaScript—tanpa beban rangka kerja atau pangkalan data luar.',
+        
+        'sec_how_to' => 'Cara Menggunakan ClearCut',
+        'step1_title' => 'Buka ClearCut',
+        'step1_desc' => 'Buka laman utama ClearCut dalam mana-mana pelayar web moden (Chrome, Firefox, Edge, Safari).',
+        'step2_title' => 'Pilih Imej',
+        'step2_desc' => 'Seret dan lepas imej ke dalam kotak muat naik atau klik butang "Pilih Imej" dari peranti anda.',
+        'step3_title' => 'Pratonton Imej',
+        'step3_desc' => 'Semak thumbnail imej, nama fail dan saiz fail untuk memastikan anda memilih foto yang betul.',
+        'step4_title' => 'Klik "Buang Latar Belakang"',
+        'step4_desc' => 'Klik butang tindakan utama untuk menghantar imej ke backend PHP melalui AJAX.',
+        'step5_title' => 'Imej Dihantar ke Pixelcut',
+        'step5_desc' => 'Backend PHP memeriksa keselamatan fail (jenis MIME dan saiz) lalu menghantarnya ke Pixelcut AI melalui cURL.',
+        'step6_title' => 'Pemprosesan AI',
+        'step6_desc' => 'Rangkaian neural Pixelcut mengesan subjek dan membuang latar belakang foto dengan tepat.',
+        'step7_title' => 'Pratonton Hasil',
+        'step7_desc' => 'Bandingkan imej asal dan hasil buangan latar belakang secara bersebelahan dengan latar belakang berpetak.',
+        'step8_title' => 'Muat Turun PNG Lutsinar',
+        'step8_desc' => 'Klik "Muat Turun PNG" untuk menyimpan hasil imej lutsinar sebagai fail no-bg.png ke peranti anda.',
+
+        'sec_ui' => 'Penjelasan Antaramuka',
+        'ui_upload_title' => 'Kawasan Muat Naik',
+        'ui_upload_desc' => 'Zon seret dan lepas yang luas untuk memasukkan foto secara pantas dari komputer atau telefon pintar.',
+        'ui_preview_title' => 'Kad Pratonton Imej',
+        'ui_preview_desc' => 'Memaparkan imej kecil foto yang dipilih berserta maklumat nama fail dan saiz sebelum dihantar.',
+        'ui_remove_btn_title' => 'Butang Buang Latar Belakang',
+        'ui_remove_btn_desc' => 'Butang tindakan utama. Hanya aktif apabila imej sah dipilih, dan dikunci semasa pemprosesan.',
+        'ui_status_title' => 'Status Pemprosesan',
+        'ui_status_desc' => 'Menunjukkan penunjuk animasi dan mesej peringkat sebenar tanpa peratusan palsu yang mengelirukan.',
+        'ui_orig_title' => 'Imej Asal',
+        'ui_orig_desc' => 'Menunjukkan gambar sumber asal untuk perbandingan visual yang mudah dan tepat.',
+        'ui_result_title' => 'Imej Hasil',
+        'ui_result_desc' => 'Memaparkan subjek yang diasingkan AI di atas corak berpetak gelap bagi menonjolkan ketelusan.',
+        'ui_down_title' => 'Butang Muat Turun PNG',
+        'ui_down_desc' => 'Memulakan muat turun terus yang selamat bagi imej hasil sebagai no-bg.png dengan saluran alpha tulen.',
+        'ui_another_title' => 'Butang Muat Naik Lain',
+        'ui_another_desc' => 'Membersihkan ruang kerja dan menetapkan semula paparan supaya anda boleh memproses foto seterusnya.',
+        'ui_studio_btn_title' => 'Studio Imej (Sunting & Langkau AI)',
+        'ui_studio_btn_desc' => 'Membuka penyunting kanvas untuk memotong nisbah aspek, memutar, membalik, dan menggunakan penapis warna pada foto asal atau hasil potongan.',
+
+        'sec_studio' => 'Studio Imej: Saiz, Bentuk Bebas, Vignet & Teks',
+        'studio_p1' => 'ClearCut dilengkapi dengan Studio Imej berasaskan Canvas pelayar web yang serba lengkap! Anda boleh memotong nisbah aspek standard (1:1 segi empat, 4:3 landskap, 16:9 skrin lebar, 3:4 potret, 9:16 cerita), memutar 90° ke kiri atau kanan, membalik mendatar dan menegak, serta menggunakan pelbagai penapis warna (Terang, Hitam Putih, Sepia, Klasik, Hangat, Sejuk, Kontras Tinggi, Vignet) dengan peluncur Kecerahan, Kontras, Ketepuan, dan Vignet Kegelapan Tepi.',
+        'studio_p2' => 'Pemotongan Bebas & Topeng Bentuk: Bebaskan kreativiti anda daripada nisbah tetap! Gunakan peluncur potong tepi untuk memotong peratusan mana-mana bahagian tepi, atau pilih topeng bentuk khas seperti Bulatan / Bujur, Kotak Melengkung, Bentuk Hati, atau Lencana Bintang dengan sempadan lutsinar yang kemas.',
+        'studio_p3' => 'Pengubahan Saiz Dimensi & Tambah Teks: Laraskan saiz tepat Lebar dan Tinggi dalam piksel dengan kunci nisbah aspek automatik, atau gunakan butang skala pantas (25% hingga 200%). Anda juga boleh menambah tulisan atau teks terus pada foto dengan 5 gaya fon, pelaras saiz fon, palet warna penuh, garis luar bayang, serta seret dan lepas teks di mana-mana sudut kanvas!',
+
+        'sec_formats' => 'Format & Had yang Disokong',
+        'formats_p1' => 'ClearCut menyokong format imej biasa: JPG, JPEG, PNG, WEBP, dan GIF.',
+        'formats_p2' => 'Had Saiz Maksimum: 15 MB. Fail yang melebihi had ini akan disekat oleh sistem demi prestasi.',
+
+        'sec_tips' => 'Petua untuk Hasil AI Terbaik',
+        'tip1_title' => 'Gunakan Imej Beresolusi Tinggi',
+        'tip1_desc' => 'Foto yang tajam membolehkan model AI mengesan rambut, barang kemas dan kontur halus dengan lebih tepat.',
+        'tip2_title' => 'Kontras Subjek yang Jelas',
+        'tip2_desc' => 'Foto di mana subjek latar hadapan berbeza warna dengan latar belakang akan menghasilkan potongan paling bersih.',
+        'tip3_title' => 'Elakkan Kabur Pergerakan',
+        'tip3_desc' => 'Foto yang kabur akibat pergerakan atau fokus yang lari menyukarkan AI memisahkan sempadan subjek.',
+        'tip4_title' => 'Subjek Tunggal atau Teratur',
+        'tip4_desc' => 'ClearCut sangat cemerlang untuk potret manusia, produk e-dagang, fesyen, kereta, dan haiwan peliharaan.',
+
+        'sec_faq' => 'Soalan Lazim (FAQ)',
+        'faq1_q' => 'Apakah format imej yang disokong?',
+        'faq1_a' => 'ClearCut menyokong imej JPG, JPEG, PNG, WEBP, dan GIF. Hasil akhir sentiasa dihantar sebagai fail PNG lutsinar.',
+        'faq2_q' => 'Berapakah saiz fail maksimum?',
+        'faq2_a' => 'Saiz fail maksimum yang dibenarkan ialah 15 MB. Fail melebihi 15 MB akan memaparkan mesej ralat yang mesra.',
+        'faq_studio_q' => 'Bolehkah saya menyunting dan memuat turun foto tanpa membuang latar belakang?',
+        'faq_studio_a' => 'Boleh! Klik butang "Sunting Foto (Langkau AI)" pada kad pratonton. Anda boleh memotong bentuk, memutar, membalik, dan menambah penapis pada foto asal, kemudian klik "Muat Turun Imej Disunting" untuk menyimpannya tanpa memanggil AI atau menggunakan kuota API.',
+        'faq3_q' => 'Mengapa pemprosesan mengambil masa beberapa saat?',
+        'faq3_a' => 'Apabila anda klik "Buang Latar Belakang", imej dimuat naik, diproses oleh kecerdasan buatan Pixelcut, dan dimuat turun sebagai PNG. Proses ini mengambil masa 3 hingga 6 saat.',
+        'faq4_q' => 'Mengapa permintaan pertama mengambil masa lebih lama sedikit?',
+        'faq4_a' => 'Permintaan awal memerlukan jabat tangan SSL dan laluan rangkaian dengan pelayan Pixelcut. Permintaan seterusnya dalam sesi yang sama akan lebih pantas.',
+        'faq5_q' => 'Apakah yang berlaku jika Pixelcut API gagal?',
+        'faq5_a' => 'Jika Pixelcut menghadapi gangguan atau kunci API tidak sah, ClearCut akan menangkap ralat, memadam fail sementara, dan memaparkan mesej ralat yang jelas tanpa mendedahkan data teknikal sensitif.',
+        'faq6_q' => 'Mengapa hasilnya berlatar belakang lutsinar?',
+        'faq6_a' => 'Fail hasil dikodkan sebagai format RGBA PNG dengan saluran alpha (ketelusan piksel latar bernilai 0), memudahkan anda meletakkan subjek pada sebarang latar belakang baharu.',
+        'faq7_q' => 'Bagaimanakah cara untuk memuat turun hasil?',
+        'faq7_a' => 'Selepas pemprosesan selesai, klik butang hijau "Muat Turun PNG". Pelayar anda akan menyimpan fail sebagai no-bg.png.',
+        'faq8_q' => 'Adakah kunci Pixelcut API saya boleh dilihat oleh pengguna?',
+        'faq8_a' => 'Tidak! Kunci API disimpan secara selamat di pelayan dalam config.php atau pembolehubah persekitaran (environment variables). Ia tidak pernah dipaparkan pada pelayar atau kod JavaScript.'
+    ]
+];
+
+// Active translations array
+$t = $translations[$currentLang] ?? $translations['en'];
+
+/**
+ * Get translated text by key with fallback
+ */
+function t(string $key): string {
+    global $t, $translations;
+    return $t[$key] ?? ($translations['en'][$key] ?? $key);
+}
+
+/**
+ * Build URL preserving the active language parameter
+ */
+function lang_url(string $page): string {
+    global $currentLang;
+    $separator = (str_contains($page, '?')) ? '&' : '?';
+    return $page . $separator . 'lang=' . urlencode($currentLang);
+}
+
+/**
+ * Render the Language Selector dropdown HTML
+ */
+function render_language_selector(): void {
+    global $currentLang;
+    ?>
+    <div class="lang-selector-wrapper" id="langSelectorWrapper">
+        <button type="button" class="lang-selector-btn" id="langSelectorBtn" aria-label="Select Language" aria-expanded="false">
+            <span class="lang-current-flag"><?php echo htmlspecialchars(SUPPORTED_LANGUAGES[$currentLang]['flag']); ?></span>
+            <span class="lang-current-name"><?php echo htmlspecialchars(SUPPORTED_LANGUAGES[$currentLang]['native']); ?></span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="lang-arrow">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
+
+        <ul class="lang-dropdown-menu" id="langDropdownMenu" role="menu">
+            <?php foreach (SUPPORTED_LANGUAGES as $code => $info): ?>
+                <li role="none">
+                    <a href="?lang=<?php echo urlencode($code); ?>" 
+                       class="lang-dropdown-item <?php echo ($code === $currentLang) ? 'active' : ''; ?>" 
+                       role="menuitem">
+                        <span class="lang-item-flag"><?php echo htmlspecialchars($info['flag']); ?></span>
+                        <span class="lang-item-name"><?php echo htmlspecialchars($info['native']); ?></span>
+                        <?php if ($code === $currentLang): ?>
+                            <svg class="lang-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        <?php endif; ?>
+                    </a>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+    <?php
+}

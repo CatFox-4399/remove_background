@@ -1,0 +1,15 @@
+# Ignore temporary user uploads and generated outputs
+uploads/*
+!uploads/.htaccess
+!uploads/index.html
+
+outputs/*
+!outputs/.htaccess
+!outputs/index.html
+
+# Ignore OS & IDE metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
