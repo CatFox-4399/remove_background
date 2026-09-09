@@ -38,6 +38,6 @@
     </div>
     <div class="footer-bottom">
         <p class="footer-copy">&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars(t('footer_copy')); ?></p>
-        <p class="footer-owner">@This website is owner by Cat Fox</p>
+        <p class="footer-owner"><?php echo htmlspecialchars(t('footer_owner')); ?></p>
     </div>
 </footer>

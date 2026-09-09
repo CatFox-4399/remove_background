@@ -254,6 +254,7 @@ $translations = [
         'footer_nav' => 'Navigation',
         'footer_powered' => 'Powered By',
         'footer_copy' => 'ClearCut. Free, fast & private AI background removal for student learning and personal projects.',
+        'footer_owner' => '@This website is owned by Cat Fox',
 
         // JS Messages
         'js_err_no_file' => 'No file was selected.',
@@ -562,6 +563,7 @@ $translations = [
         'footer_nav' => '快速导航',
         'footer_powered' => '核心驱动',
         'footer_copy' => 'ClearCut。为学生学习与个人项目打造的免费、快速、安全的 AI 抠图工具。',
+        'footer_owner' => '@本网站由 Cat Fox 所有',
 
         // JS Messages
         'js_err_no_file' => '请先选择一张图片。',
@@ -870,6 +872,7 @@ $translations = [
         'footer_nav' => 'Navigasi',
         'footer_powered' => 'Dikuasakan Oleh',
         'footer_copy' => 'ClearCut. Pembuang latar belakang AI percuma, pantas & selamat untuk pembelajaran pelajar dan projek peribadi.',
+        'footer_owner' => '@Laman web ini dimiliki oleh Cat Fox',
 
         // JS Messages
         'js_err_no_file' => 'Tiada fail dipilih.',
