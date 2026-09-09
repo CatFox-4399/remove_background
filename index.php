@@ -28,7 +28,7 @@ require_once __DIR__ . '/includes/languages.php';
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?php echo filemtime(__DIR__ . '/assets/css/style.css'); ?>">
 </head>
 <body>
 
@@ -313,7 +313,7 @@ require_once __DIR__ . '/includes/languages.php';
                             <button type="button" class="category-pill-btn btn-cat-new" data-category="new" id="btnCatNew">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                                 <span><?php echo htmlspecialchars(t('studio_new_features')); ?></span>
-                                <span class="category-badge-pill">4 NEW</span>
+                                <span class="category-badge-pill">5 NEW</span>
                             </button>
                         </div>
 
@@ -333,7 +333,7 @@ require_once __DIR__ . '/includes/languages.php';
                             </button>
                         </div>
 
-                        <!-- Dedicated Separated New Feature Tabs (4 Spacious Tabs) -->
+                        <!-- Dedicated Separated New Feature Tabs (5 Spacious Tabs) -->
                         <div class="studio-tabs studio-tabs-new" id="tabsGroupNew" role="tablist">
                             <button type="button" class="studio-tab studio-tab-new" data-tab="chop_free" role="tab" aria-selected="false" title="<?php echo htmlspecialchars(t('tab_chop_free')); ?>">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
@@ -350,6 +350,10 @@ require_once __DIR__ . '/includes/languages.php';
                             <button type="button" class="studio-tab studio-tab-new" data-tab="text" role="tab" aria-selected="false" title="<?php echo htmlspecialchars(t('tab_text')); ?>">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
                                 <span><?php echo htmlspecialchars(t('tab_text')); ?></span>
+                            </button>
+                            <button type="button" class="studio-tab studio-tab-new" data-tab="overlay" role="tab" aria-selected="false" title="<?php echo htmlspecialchars(t('tab_overlay')); ?>">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><rect x="9" y="9" width="10" height="10" rx="1.5" stroke-dasharray="2 2"></rect></svg>
+                                <span><?php echo htmlspecialchars(t('tab_overlay')); ?></span>
                             </button>
                         </div>
 
@@ -373,6 +377,10 @@ require_once __DIR__ . '/includes/languages.php';
                                     <span class="ratio-box ratio-box-16-9"></span>
                                     <span><?php echo htmlspecialchars(t('aspect_16_9')); ?></span>
                                 </button>
+                                <button type="button" class="ratio-btn ratio-btn-fhd" data-ratio="1920:1080" title="1920×1080 (FHD 16:9)">
+                                    <span class="ratio-box ratio-box-fhd"></span>
+                                    <span><?php echo htmlspecialchars(t('aspect_1920_1080')); ?></span>
+                                </button>
                                 <button type="button" class="ratio-btn" data-ratio="3:4">
                                     <span class="ratio-box ratio-box-3-4"></span>
                                     <span><?php echo htmlspecialchars(t('aspect_3_4')); ?></span>
@@ -381,6 +389,51 @@ require_once __DIR__ . '/includes/languages.php';
                                     <span class="ratio-box ratio-box-9-16"></span>
                                     <span><?php echo htmlspecialchars(t('aspect_9_16')); ?></span>
                                 </button>
+                            </div>
+
+                            <!-- Photo Framing & Positioning Controls (Pan within Crop) -->
+                            <div class="crop-position-panel">
+                                <div class="crop-position-header">
+                                    <p class="studio-panel-label" style="margin: 0;"><?php echo htmlspecialchars(t('pan_position_title')); ?></p>
+                                    <button type="button" class="btn-reset-pan" id="btnResetPan" title="<?php echo htmlspecialchars(t('pan_center')); ?>">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                                        <span><?php echo htmlspecialchars(t('pan_center')); ?></span>
+                                    </button>
+                                </div>
+                                <div class="crop-margin-item" style="margin-bottom: 0.85rem;">
+                                    <div class="slider-header">
+                                        <span><?php echo htmlspecialchars(t('pan_zoom')); ?></span>
+                                        <span id="valCropZoom">100%</span>
+                                    </div>
+                                    <input type="range" id="rangeCropZoom" min="100" max="300" value="100" class="studio-range">
+                                </div>
+                                <div class="crop-pan-sliders">
+                                    <div class="crop-margin-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('pan_horizontal')); ?></span>
+                                            <span id="valCropPanX">0%</span>
+                                        </div>
+                                        <input type="range" id="rangeCropPanX" min="-100" max="100" value="0" class="studio-range">
+                                    </div>
+                                    <div class="crop-margin-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('pan_vertical')); ?></span>
+                                            <span id="valCropPanY">0%</span>
+                                        </div>
+                                        <input type="range" id="rangeCropPanY" min="-100" max="100" value="0" class="studio-range">
+                                    </div>
+                                </div>
+                                <div class="pan-quick-grid">
+                                    <button type="button" class="pan-quick-btn" data-pan-x="-100" data-pan-y="0" title="Align Left">◀ Left</button>
+                                    <button type="button" class="pan-quick-btn" data-pan-x="0" data-pan-y="-100" title="Align Top">▲ Top</button>
+                                    <button type="button" class="pan-quick-btn active" id="btnPanCenterQuick" data-pan-x="0" data-pan-y="0" title="Center">● Center</button>
+                                    <button type="button" class="pan-quick-btn" data-pan-x="0" data-pan-y="100" title="Align Bottom">▼ Bottom</button>
+                                    <button type="button" class="pan-quick-btn" data-pan-x="100" data-pan-y="0" title="Align Right">Right ▶</button>
+                                </div>
+                                <p class="drag-hint-box" style="margin-top: 10px; margin-bottom: 0;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align: middle; margin-right: 4px;"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
+                                    <span><?php echo htmlspecialchars(t('pan_hint')); ?></span>
+                                </p>
                             </div>
 
                             <!-- Extrude Entire Picture to Square (No Crop / 1:1 Stretch) -->
@@ -531,6 +584,10 @@ require_once __DIR__ . '/includes/languages.php';
                                     <input type="range" id="rangeCropRight" min="0" max="45" value="0" class="studio-range">
                                 </div>
                             </div>
+                            <p class="drag-hint-box" style="margin-top: 12px; margin-bottom: 0;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align: middle; margin-right: 4px;"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
+                                <span><?php echo htmlspecialchars(t('pan_hint')); ?></span>
+                            </p>
                         </div>
 
                         <!-- Tab 5: [NEW FEATURE] Resize Picture -->
@@ -573,37 +630,95 @@ require_once __DIR__ . '/includes/languages.php';
                                 <button type="button" class="scale-btn" data-scale="2.0">200%</button>
                             </div>
 
+                            <p class="studio-panel-label" style="margin-top: 14px;"><?php echo htmlspecialchars(t('standard_resolutions')); ?></p>
+                            <div class="resolution-presets-grid">
+                                <button type="button" class="res-preset-btn" data-width="1920" data-height="1080">
+                                    <span class="res-preset-name"><?php echo htmlspecialchars(t('res_fhd')); ?></span>
+                                    <span class="res-preset-tag">16:9</span>
+                                </button>
+                                <button type="button" class="res-preset-btn" data-width="1080" data-height="1080">
+                                    <span class="res-preset-name"><?php echo htmlspecialchars(t('res_square')); ?></span>
+                                    <span class="res-preset-tag">1:1</span>
+                                </button>
+                                <button type="button" class="res-preset-btn" data-width="1080" data-height="1920">
+                                    <span class="res-preset-name"><?php echo htmlspecialchars(t('res_story')); ?></span>
+                                    <span class="res-preset-tag">9:16</span>
+                                </button>
+                            </div>
+
                             <button type="button" class="scale-btn btn-extrude-shortcut" id="btnResizeExtrudeSquare" style="width: 100%; margin-top: 10px; padding: 10px 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M7 12h10M12 7v10"></path></svg>
                                 <span><?php echo htmlspecialchars(t('extrude_square_short')); ?></span>
                             </button>
                         </div>
 
-                        <!-- Tab 6: [NEW FEATURE] Vignette Edge Shading -->
+                        <!-- Tab 6: [NEW FEATURE] Edge Blurring & Vignette -->
                         <div class="studio-tab-content" id="tabContentVignette">
                             <div class="new-feature-tab-banner">
                                 <span class="tab-badge-new"><?php echo htmlspecialchars(t('new_badge')); ?></span>
                                 <span class="new-tab-banner-text"><?php echo htmlspecialchars(t('new_feat_vignette_title')); ?></span>
                             </div>
 
-                            <p class="studio-panel-label"><?php echo htmlspecialchars(t('vignette')); ?></p>
-                            
-                            <div class="slider-item" style="margin-bottom: 1rem;">
-                                <div class="slider-header">
-                                    <span><?php echo htmlspecialchars(t('vignette')); ?></span>
-                                    <span id="valVignette">0%</span>
+                            <!-- Section A: Edge Blurring & Softness -->
+                            <div class="edge-blur-panel">
+                                <p class="studio-panel-label"><?php echo htmlspecialchars(t('edge_blur_title')); ?></p>
+                                
+                                <!-- Style Toggles: Perimeter Lens Blur vs Soft Border Feather -->
+                                <div class="edge-blur-mode-grid">
+                                    <button type="button" class="edge-blur-mode-btn active" id="btnEdgeBlurRadial" data-mode="radial">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                                        <span><?php echo htmlspecialchars(t('edge_blur_radial')); ?></span>
+                                    </button>
+                                    <button type="button" class="edge-blur-mode-btn" id="btnEdgeBlurFeather" data-mode="feather">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3" stroke-dasharray="3 3"></rect><circle cx="12" cy="12" r="2" fill="currentColor"></circle></svg>
+                                        <span><?php echo htmlspecialchars(t('edge_blur_feather')); ?></span>
+                                    </button>
                                 </div>
-                                <input type="range" id="rangeVignette" min="0" max="100" value="0" class="studio-range">
+
+                                <div class="slider-item" style="margin-top: 0.85rem; margin-bottom: 0.75rem;">
+                                    <div class="slider-header">
+                                        <span><?php echo htmlspecialchars(t('edge_blur_amount')); ?></span>
+                                        <span id="valEdgeBlur">0%</span>
+                                    </div>
+                                    <input type="range" id="rangeEdgeBlur" min="0" max="100" value="0" class="studio-range">
+                                </div>
+
+                                <!-- Quick Presets Grid -->
+                                <div class="edge-blur-presets-grid">
+                                    <button type="button" class="edge-preset-btn active" data-val="0"><?php echo htmlspecialchars(t('preset_none')); ?></button>
+                                    <button type="button" class="edge-preset-btn" data-val="20"><?php echo htmlspecialchars(t('preset_subtle')); ?></button>
+                                    <button type="button" class="edge-preset-btn" data-val="45"><?php echo htmlspecialchars(t('preset_medium')); ?></button>
+                                    <button type="button" class="edge-preset-btn" data-val="80"><?php echo htmlspecialchars(t('preset_strong')); ?></button>
+                                </div>
+
+                                <p class="drag-hint-box" style="margin-top: 0.75rem; margin-bottom: 0;">
+                                    <?php echo htmlspecialchars(t('edge_blur_hint')); ?>
+                                </p>
                             </div>
 
-                            <button type="button" class="filter-pill" id="btnPresetVignette" style="width: 100%; margin-top: 0.5rem;">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="9"></circle></svg>
-                                <span><?php echo htmlspecialchars(t('filter_vignette')); ?> (60%)</span>
-                            </button>
+                            <div class="studio-section-divider" style="margin: 1.25rem 0; height: 1px; background: rgba(255, 255, 255, 0.08);"></div>
 
-                            <p class="drag-hint-box" style="margin-top: 1rem;">
-                                <?php echo htmlspecialchars(t('vignette_panel_desc')); ?>
-                            </p>
+                            <!-- Section B: Vignette Shading -->
+                            <div class="vignette-subpanel">
+                                <p class="studio-panel-label"><?php echo htmlspecialchars(t('vignette')); ?></p>
+                                
+                                <div class="slider-item" style="margin-bottom: 0.75rem;">
+                                    <div class="slider-header">
+                                        <span><?php echo htmlspecialchars(t('vignette')); ?></span>
+                                        <span id="valVignette">0%</span>
+                                    </div>
+                                    <input type="range" id="rangeVignette" min="0" max="100" value="0" class="studio-range">
+                                </div>
+
+                                <button type="button" class="filter-pill" id="btnPresetVignette" style="width: 100%; margin-top: 0.25rem;">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="9"></circle></svg>
+                                    <span><?php echo htmlspecialchars(t('filter_vignette')); ?> (60%)</span>
+                                </button>
+
+                                <p class="drag-hint-box" style="margin-top: 0.75rem;">
+                                    <?php echo htmlspecialchars(t('vignette_panel_desc')); ?>
+                                </p>
+                            </div>
                         </div>
 
                         <!-- Tab 7: [NEW FEATURE] Add Text / Words -->
@@ -637,6 +752,21 @@ require_once __DIR__ . '/includes/languages.php';
                                     </div>
                                     <input type="range" id="rangeFontSize" min="14" max="120" value="36" class="studio-range">
                                 </div>
+                            </div>
+
+                            <!-- Word Transparency / Opacity -->
+                            <div class="slider-item" style="margin-bottom: 8px;">
+                                <div class="slider-header">
+                                    <span><?php echo htmlspecialchars(t('text_opacity')); ?></span>
+                                    <span id="valTextOpacity">100%</span>
+                                </div>
+                                <input type="range" id="rangeTextOpacity" min="5" max="100" value="100" class="studio-range">
+                            </div>
+                            <div class="edge-blur-presets-grid" style="margin-bottom: 14px;">
+                                <button type="button" class="edge-preset-btn text-op-btn active" data-opacity="100"><?php echo htmlspecialchars(t('text_op_solid')); ?></button>
+                                <button type="button" class="edge-preset-btn text-op-btn" data-opacity="75"><?php echo htmlspecialchars(t('text_op_75')); ?></button>
+                                <button type="button" class="edge-preset-btn text-op-btn" data-opacity="50"><?php echo htmlspecialchars(t('text_op_watermark')); ?></button>
+                                <button type="button" class="edge-preset-btn text-op-btn" data-opacity="25"><?php echo htmlspecialchars(t('text_op_subtle')); ?></button>
                             </div>
 
                             <?php
@@ -770,6 +900,134 @@ require_once __DIR__ . '/includes/languages.php';
 
                             <p class="drag-hint-box"><?php echo htmlspecialchars(t('drag_hint')); ?></p>
                         </div>
+
+                        <!-- Tab 8: [NEW FEATURE] Overlay Image & Watermark -->
+                        <div class="studio-tab-content" id="tabContentOverlay">
+                            <div class="new-feature-tab-banner">
+                                <span class="tab-badge-new"><?php echo htmlspecialchars(t('new_badge')); ?></span>
+                                <span class="new-tab-banner-text"><?php echo htmlspecialchars(t('new_feat_overlay_title')); ?></span>
+                            </div>
+
+                            <p class="studio-panel-label"><?php echo htmlspecialchars(t('overlay_upload_label')); ?></p>
+                            
+                            <!-- Hidden File Input for Overlay Image -->
+                            <input type="file" id="inputOverlayFile" accept="image/*" style="display: none;">
+
+                            <!-- Upload Button & Drop Card -->
+                            <div class="overlay-card" id="overlayUploadCard">
+                                <div class="overlay-empty-state" id="overlayEmptyState">
+                                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--accent-cyan);"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                    <p class="overlay-empty-text"><?php echo htmlspecialchars(t('overlay_no_img')); ?></p>
+                                    <button type="button" class="btn-secondary-action" id="btnTriggerOverlayUpload" style="margin-top: 6px; width: auto; padding: 7px 16px; font-size: 0.85rem;">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                        <span><?php echo htmlspecialchars(t('overlay_upload_btn')); ?></span>
+                                    </button>
+                                </div>
+
+                                <div class="overlay-loaded-state" id="overlayLoadedState" style="display: none;">
+                                    <div class="overlay-thumb-wrapper">
+                                        <img id="overlayThumbImg" src="" alt="Overlay thumbnail">
+                                        <div class="overlay-thumb-info">
+                                            <span id="overlayFileInfo" class="overlay-filename">image.png</span>
+                                            <span id="overlayDimInfo" class="overlay-dimensions">0 × 0 px</span>
+                                        </div>
+                                    </div>
+                                    <div class="overlay-thumb-actions">
+                                        <button type="button" class="btn-thumb-change" id="btnChangeOverlay" title="<?php echo htmlspecialchars(t('overlay_change_btn')); ?>">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                                            <span><?php echo htmlspecialchars(t('overlay_change_btn')); ?></span>
+                                        </button>
+                                        <button type="button" class="btn-thumb-remove" id="btnRemoveOverlay" title="<?php echo htmlspecialchars(t('overlay_remove_btn')); ?>">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                            <span><?php echo htmlspecialchars(t('overlay_remove_btn')); ?></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Overlay Controls (Size, Transparency, Position) -->
+                            <div id="overlayControlsPanel" style="display: none; margin-top: 1.25rem;">
+                                <!-- 1. Size / Scale Control -->
+                                <div class="slider-item" style="margin-bottom: 12px;">
+                                    <div class="slider-header">
+                                        <span><?php echo htmlspecialchars(t('overlay_size')); ?></span>
+                                        <span id="valOverlaySize">35%</span>
+                                    </div>
+                                    <input type="range" id="rangeOverlaySize" min="10" max="100" value="35" class="studio-range">
+                                </div>
+                                <div class="edge-blur-presets-grid" style="margin-bottom: 16px;">
+                                    <button type="button" class="edge-preset-btn overlay-size-btn" data-size="20"><?php echo htmlspecialchars(t('overlay_size_small')); ?></button>
+                                    <button type="button" class="edge-preset-btn overlay-size-btn active" data-size="35"><?php echo htmlspecialchars(t('overlay_size_medium')); ?></button>
+                                    <button type="button" class="edge-preset-btn overlay-size-btn" data-size="70"><?php echo htmlspecialchars(t('overlay_size_large')); ?></button>
+                                    <button type="button" class="edge-preset-btn overlay-size-btn" data-size="100"><?php echo htmlspecialchars(t('overlay_size_full')); ?></button>
+                                </div>
+
+                                <div class="studio-section-divider" style="margin: 14px 0; height: 1px; background: rgba(255, 255, 255, 0.08);"></div>
+
+                                <!-- 2. Transparency / Opacity Control -->
+                                <div class="slider-item" style="margin-bottom: 12px;">
+                                    <div class="slider-header">
+                                        <span><?php echo htmlspecialchars(t('overlay_opacity')); ?></span>
+                                        <span id="valOverlayOpacity">100%</span>
+                                    </div>
+                                    <input type="range" id="rangeOverlayOpacity" min="5" max="100" value="100" class="studio-range">
+                                </div>
+                                <div class="edge-blur-presets-grid" style="margin-bottom: 16px;">
+                                    <button type="button" class="edge-preset-btn overlay-op-btn active" data-opacity="100"><?php echo htmlspecialchars(t('overlay_op_solid')); ?></button>
+                                    <button type="button" class="edge-preset-btn overlay-op-btn" data-opacity="75"><?php echo htmlspecialchars(t('overlay_op_75')); ?></button>
+                                    <button type="button" class="edge-preset-btn overlay-op-btn" data-opacity="50"><?php echo htmlspecialchars(t('overlay_op_watermark')); ?></button>
+                                    <button type="button" class="edge-preset-btn overlay-op-btn" data-opacity="25"><?php echo htmlspecialchars(t('overlay_op_subtle')); ?></button>
+                                </div>
+
+                                <div class="studio-section-divider" style="margin: 14px 0; height: 1px; background: rgba(255, 255, 255, 0.08);"></div>
+
+                                <!-- 3. Quick Position Alignment -->
+                                <p class="studio-panel-label" style="margin-bottom: 8px;"><?php echo htmlspecialchars(t('overlay_position')); ?></p>
+                                <div class="overlay-align-grid">
+                                    <button type="button" class="overlay-align-btn" data-align="tl" title="<?php echo htmlspecialchars(t('align_tl')); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 5 5 5 5 9"></polyline></svg>
+                                        <span><?php echo htmlspecialchars(t('align_tl')); ?></span>
+                                    </button>
+                                    <button type="button" class="overlay-align-btn" data-align="center" title="<?php echo htmlspecialchars(t('align_center')); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                                        <span><?php echo htmlspecialchars(t('align_center')); ?></span>
+                                    </button>
+                                    <button type="button" class="overlay-align-btn" data-align="tr" title="<?php echo htmlspecialchars(t('align_tr')); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 5 19 5 19 9"></polyline></svg>
+                                        <span><?php echo htmlspecialchars(t('align_tr')); ?></span>
+                                    </button>
+                                    <button type="button" class="overlay-align-btn" data-align="bl" title="<?php echo htmlspecialchars(t('align_bl')); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 19 5 19 5 15"></polyline></svg>
+                                        <span><?php echo htmlspecialchars(t('align_bl')); ?></span>
+                                    </button>
+                                    <button type="button" class="overlay-align-btn active" data-align="br" title="<?php echo htmlspecialchars(t('align_br')); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 19 19 19 19 15"></polyline></svg>
+                                        <span><?php echo htmlspecialchars(t('align_br')); ?></span>
+                                    </button>
+                                </div>
+
+                                <!-- Position X & Y fine-tuning sliders -->
+                                <div class="slider-item" style="margin-top: 14px; margin-bottom: 10px;">
+                                    <div class="slider-header">
+                                        <span><?php echo htmlspecialchars(t('overlay_pos_x')); ?></span>
+                                        <span id="valOverlayPosX">82%</span>
+                                    </div>
+                                    <input type="range" id="rangeOverlayPosX" min="0" max="100" value="82" class="studio-range">
+                                </div>
+
+                                <div class="slider-item" style="margin-bottom: 10px;">
+                                    <div class="slider-header">
+                                        <span><?php echo htmlspecialchars(t('overlay_pos_y')); ?></span>
+                                        <span id="valOverlayPosY">82%</span>
+                                    </div>
+                                    <input type="range" id="rangeOverlayPosY" min="0" max="100" value="82" class="studio-range">
+                                </div>
+
+                                <p class="drag-hint-box" style="margin-top: 12px;">
+                                    <?php echo htmlspecialchars(t('overlay_drag_hint')); ?>
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -888,6 +1146,18 @@ require_once __DIR__ . '/includes/languages.php';
                         <h3 class="feature-heading"><?php echo htmlspecialchars(t('new_feat_text_title')); ?></h3>
                         <p class="feature-description"><?php echo htmlspecialchars(t('new_feat_text_desc')); ?></p>
                     </div>
+
+                    <!-- New Feature 5: Overlay Image & Watermark -->
+                    <div class="feature-box feature-box-new">
+                        <div class="feature-card-header">
+                            <div class="feature-icon-circle icon-new-feat">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><rect x="9" y="9" width="10" height="10" rx="1.5" stroke-dasharray="2 2"></rect></svg>
+                            </div>
+                            <span class="pill-new"><?php echo htmlspecialchars(t('new_badge')); ?></span>
+                        </div>
+                        <h3 class="feature-heading"><?php echo htmlspecialchars(t('new_feat_overlay_title')); ?></h3>
+                        <p class="feature-description"><?php echo htmlspecialchars(t('new_feat_overlay_desc')); ?></p>
+                    </div>
                 </div>
             </section>
         </div>
@@ -920,7 +1190,7 @@ require_once __DIR__ . '/includes/languages.php';
             extrudeOff: <?php echo json_encode(t('extrude_off')); ?>
         };
     </script>
-    <script src="assets/js/app.js"></script>
+    <script src="assets/js/app.js?v=<?php echo filemtime(__DIR__ . '/assets/js/app.js'); ?>"></script>
     <script src="assets/js/pwa.js" defer></script>
 </body>
 </html>

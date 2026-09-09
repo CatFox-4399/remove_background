@@ -968,9 +968,33 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .footer-bottom {
     max-width: 1200px;
     margin: 2rem auto 0;
-    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
     color: var(--text-muted);
     font-size: 0.85rem;
+}
+
+.footer-copy {
+    margin: 0;
+}
+
+.footer-owner {
+    margin: 0;
+    color: var(--text-secondary);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    transition: color 0.2s ease;
+}
+
+.footer-owner:hover {
+    color: #38bdf8;
 }
 
 /* Animations */
@@ -1005,6 +1029,12 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 
 @media (max-width: 768px) {
+    .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.6rem;
+    }
+
     .result-comparison-grid {
         grid-template-columns: 1fr;
     }
@@ -1337,6 +1367,14 @@ button:focus-visible, a:focus-visible, input:focus-visible {
     max-width: 100%;
     max-height: 420px;
     object-fit: contain;
+    cursor: grab;
+    touch-action: none;
+}
+
+.studio-canvas-wrapper canvas.is-dragging,
+.studio-canvas-wrapper canvas.is-panning {
+    cursor: grabbing !important;
+    user-select: none;
 }
 
 /* Sidebar */
@@ -1545,8 +1583,93 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .ratio-box-1-1  { width: 16px; height: 16px; }
 .ratio-box-4-3  { width: 18px; height: 13.5px; }
 .ratio-box-16-9 { width: 20px; height: 11px; }
+.ratio-box-fhd  { width: 20px; height: 11.25px; border-width: 2px; }
 .ratio-box-3-4  { width: 13.5px; height: 18px; }
 .ratio-box-9-16 { width: 11px; height: 20px; }
+
+.ratio-btn-fhd {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(99, 102, 241, 0.08));
+    border-color: rgba(56, 189, 248, 0.28);
+}
+
+/* Photo Framing & Position Panel */
+.crop-position-panel {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: var(--radius-md);
+}
+
+.crop-position-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.85rem;
+}
+
+.btn-reset-pan {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: var(--font);
+}
+
+.btn-reset-pan:hover {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.4);
+}
+
+.crop-pan-sliders {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.pan-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.35rem;
+}
+
+.pan-quick-btn {
+    padding: 0.45rem 0.2rem;
+    font-size: 0.74rem;
+    font-weight: 500;
+    text-align: center;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: var(--font);
+    white-space: nowrap;
+}
+
+.pan-quick-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--border-highlight);
+    color: #ffffff;
+}
+
+.pan-quick-btn.active {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    font-weight: 600;
+}
 
 /* Extrude to Square Panel Styles */
 .extrude-square-panel {
@@ -1820,6 +1943,55 @@ button:focus-visible, a:focus-visible, input:focus-visible {
     background: rgba(56, 189, 248, 0.12);
     color: #38bdf8;
     font-weight: 600;
+}
+
+/* Resolution Presets Grid in Tab 5 (Resize) */
+.resolution-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.res-preset-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.6rem 0.35rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-light);
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: var(--font);
+    text-align: center;
+}
+
+.res-preset-btn:hover {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.res-preset-btn.active {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+
+.res-preset-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.res-preset-tag {
+    font-size: 0.68rem;
+    color: var(--text-muted);
 }
 
 /* Text Overlay Tool Styles */
@@ -2347,4 +2519,256 @@ button:focus-visible, a:focus-visible, input:focus-visible {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
 }
+
+/* ==========================================================================
+   Edge Blurring & Softness Controls
+   ========================================================================== */
+.edge-blur-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.edge-blur-mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.edge-blur-mode-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--bg-glass, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-sm, 8px);
+    color: var(--text-light, #cbd5e1);
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: var(--font, inherit);
+    cursor: pointer;
+    transition: var(--transition, all 0.2s ease);
+    text-align: center;
+}
+
+.edge-blur-mode-btn:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--border-highlight, rgba(99, 102, 241, 0.4));
+    color: #ffffff;
+}
+
+.edge-blur-mode-btn.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.25));
+    border-color: #38bdf8;
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.edge-blur-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.edge-preset-btn {
+    padding: 6px 4px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-sm, 8px);
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: var(--font, inherit);
+    cursor: pointer;
+    transition: var(--transition, all 0.2s ease);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.edge-preset-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.edge-preset-btn.active {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.vignette-subpanel {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   Overlay Image (Picture-in-Picture / Watermark) Controls
+   ========================================================================== */
+.overlay-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1.5px dashed rgba(56, 189, 248, 0.35);
+    border-radius: var(--radius-md, 12px);
+    padding: 1rem;
+    transition: var(--transition, all 0.2s ease);
+}
+
+.overlay-card:hover {
+    border-color: rgba(56, 189, 248, 0.6);
+    background: rgba(15, 23, 42, 0.8);
+}
+
+.overlay-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 0.5rem 0;
+}
+
+.overlay-empty-text {
+    font-size: 0.82rem;
+    color: var(--text-muted, #94a3b8);
+    line-height: 1.45;
+    max-width: 280px;
+    margin: 0;
+}
+
+.overlay-loaded-state {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.overlay-thumb-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm, 8px);
+    padding: 8px 12px;
+}
+
+.overlay-thumb-wrapper img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 6px;
+    background: repeating-conic-gradient(#1e293b 0% 25%, #0f172a 0% 50%) 50% / 12px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.overlay-thumb-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.overlay-filename {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.overlay-dimensions {
+    font-size: 0.75rem;
+    color: var(--accent-cyan, #38bdf8);
+}
+
+.overlay-thumb-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.btn-thumb-change,
+.btn-thumb-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm, 8px);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition, all 0.2s ease);
+    border: 1px solid transparent;
+}
+
+.btn-thumb-change {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-light, #cbd5e1);
+}
+
+.btn-thumb-change:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #ffffff;
+}
+
+.btn-thumb-remove {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+}
+
+.btn-thumb-remove:hover {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: #ef4444;
+    color: #ffffff;
+}
+
+/* 5-Point Quick Alignment Grid */
+.overlay-align-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+
+.overlay-align-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-sm, 8px);
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition, all 0.2s ease);
+}
+
+.overlay-align-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.overlay-align-btn.active {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    font-weight: 600;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+
 

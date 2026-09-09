@@ -3,7 +3,7 @@
  * High-performance caching, offline fallback, and PWA installation support
  */
 
-const CACHE_NAME = 'clearcut-pwa-v1';
+const CACHE_NAME = 'clearcut-pwa-v6';
 
 // Essential App Shell resources to precache
 const PRECACHE_ASSETS = [
@@ -135,8 +135,8 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Bypass Service Worker for dynamic API processing and downloads
-    if (url.pathname.includes('/api/process.php') || url.pathname.includes('/api/download.php')) {
+    // Bypass Service Worker for dynamic API processing, downloads, and versioned assets
+    if (url.pathname.includes('/api/process.php') || url.pathname.includes('/api/download.php') || url.searchParams.has('v')) {
         return;
     }
 

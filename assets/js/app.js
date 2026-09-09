@@ -456,11 +456,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLockAspect = document.getElementById('btnLockAspect');
     const origDimIndicator = document.getElementById('origDimIndicator');
 
+    // Photo Framing, Zoom & Pan Controls
+    const rangeCropZoom = document.getElementById('rangeCropZoom');
+    const valCropZoom = document.getElementById('valCropZoom');
+    const rangeCropPanX = document.getElementById('rangeCropPanX');
+    const rangeCropPanY = document.getElementById('rangeCropPanY');
+    const valCropPanX = document.getElementById('valCropPanX');
+    const valCropPanY = document.getElementById('valCropPanY');
+    const btnResetPan = document.getElementById('btnResetPan');
+    const btnPanCenterQuick = document.getElementById('btnPanCenterQuick');
+
     // Text Overlay Elements
     const studioTextInput = document.getElementById('studioTextInput');
     const selectFontFamily = document.getElementById('selectFontFamily');
     const rangeFontSize = document.getElementById('rangeFontSize');
     const valFontSize = document.getElementById('valFontSize');
+    const rangeTextOpacity = document.getElementById('rangeTextOpacity');
+    const valTextOpacity = document.getElementById('valTextOpacity');
     const inputTextColor = document.getElementById('inputTextColor');
     // Outline elements
     const btnTextOutline = document.getElementById('btnTextOutline');
@@ -497,8 +509,13 @@ document.addEventListener('DOMContentLoaded', () => {
         aspectRatio: 'free',
         cropShape: 'rect', // 'rect', 'circle', 'rounded', 'heart', 'star'
         cropMargins: { top: 0, bottom: 0, left: 0, right: 0 },
+        cropZoom: 100,           // 100% to 300%
+        cropPan: { x: 0, y: 0 }, // -100 to 100 percentage (X: -100=Left, +100=Right; Y: -100=Top, +100=Bottom)
+        targetResolution: null,  // { width: 1920, height: 1080 } when active
         activeFilter: 'normal',
         vignette: 0,      // 0 to 100
+        edgeBlur: 0,      // 0 to 100
+        edgeBlurMode: 'radial', // 'radial' or 'feather'
         brightness: 0,
         contrast: 0,
         saturation: 0,
@@ -514,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
             font: 'sans-serif',
             size: 36,
             color: '#ffffff',
+            opacity: 100, // 5 to 100
             bold: true,
             italic: false,
             outline: true,
@@ -525,7 +543,19 @@ document.addEventListener('DOMContentLoaded', () => {
             x: 0.5,       // relative 0 to 1
             y: 0.85       // relative 0 to 1
         },
-        isDraggingText: false
+        overlay: {
+            img: null,
+            filename: '',
+            size: 35,        // percentage 10 to 100
+            x: 0.82,         // normalized center X (default bottom-right)
+            y: 0.82,         // normalized center Y
+            opacity: 100     // 5 to 100
+        },
+        isDraggingText: false,
+        isDraggingOverlay: false,
+        isPanningPhoto: false,
+        panStart: { x: 0, y: 0 },
+        panInitialState: { x: 0, y: 0 }
     };
 
     /**
@@ -589,8 +619,12 @@ document.addEventListener('DOMContentLoaded', () => {
         studioState.aspectRatio = 'free';
         studioState.cropShape = 'rect';
         studioState.cropMargins = { top: 0, bottom: 0, left: 0, right: 0 };
+        studioState.cropPan = { x: 0, y: 0 };
+        studioState.targetResolution = null;
         studioState.activeFilter = 'normal';
         studioState.vignette = 0;
+        studioState.edgeBlur = 0;
+        studioState.edgeBlurMode = 'radial';
         studioState.brightness = 0;
         studioState.contrast = 0;
         studioState.saturation = 0;
@@ -603,6 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
         studioState.text.font = 'sans-serif';
         studioState.text.size = 36;
         studioState.text.color = '#ffffff';
+        studioState.text.opacity = 100;
         studioState.text.bold = true;
         studioState.text.italic = false;
         studioState.text.outline = true;
@@ -624,6 +659,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (valSaturation) valSaturation.textContent = '0%';
         if (valVignette) valVignette.textContent = '0%';
 
+        const rangeEdgeBlur = document.getElementById('rangeEdgeBlur');
+        const valEdgeBlur = document.getElementById('valEdgeBlur');
+        const btnEdgeBlurRadial = document.getElementById('btnEdgeBlurRadial');
+        const btnEdgeBlurFeather = document.getElementById('btnEdgeBlurFeather');
+        if (rangeEdgeBlur) rangeEdgeBlur.value = 0;
+        if (valEdgeBlur) valEdgeBlur.textContent = '0%';
+        if (btnEdgeBlurRadial) btnEdgeBlurRadial.classList.add('active');
+        if (btnEdgeBlurFeather) btnEdgeBlurFeather.classList.remove('active');
+        document.querySelectorAll('.edge-preset-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.val === '0');
+        });
+
         if (rangeCropTop) rangeCropTop.value = 0;
         if (rangeCropBottom) rangeCropBottom.value = 0;
         if (rangeCropLeft) rangeCropLeft.value = 0;
@@ -632,6 +679,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (valCropBottom) valCropBottom.textContent = '0%';
         if (valCropLeft) valCropLeft.textContent = '0%';
         if (valCropRight) valCropRight.textContent = '0%';
+
+        // Framing, Zoom & Pan Controls
+        studioState.cropZoom = 100;
+        studioState.cropPan = { x: 0, y: 0 };
+        studioState.targetResolution = null;
+        if (rangeCropZoom) rangeCropZoom.value = 100;
+        if (valCropZoom) valCropZoom.textContent = '100%';
+        if (rangeCropPanX) rangeCropPanX.value = 0;
+        if (valCropPanX) valCropPanX.textContent = '0%';
+        if (rangeCropPanY) rangeCropPanY.value = 0;
+        if (valCropPanY) valCropPanY.textContent = '0%';
+        document.querySelectorAll('.pan-quick-btn').forEach(b => {
+            const bx = parseInt(b.dataset.panX, 10);
+            const by = parseInt(b.dataset.panY, 10);
+            b.classList.toggle('active', bx === 0 && by === 0);
+        });
+        document.querySelectorAll('.res-preset-btn').forEach(b => b.classList.remove('active'));
 
         // Resize Inputs & Dimensions
         studioState.resize.customWidth = 0;
@@ -657,6 +721,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectFontFamily) selectFontFamily.value = 'sans-serif';
         if (rangeFontSize) rangeFontSize.value = 36;
         if (valFontSize) valFontSize.textContent = '36px';
+        if (rangeTextOpacity) rangeTextOpacity.value = 100;
+        if (valTextOpacity) valTextOpacity.textContent = '100%';
+        document.querySelectorAll('.text-op-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.opacity === '100');
+        });
         if (inputTextColor) inputTextColor.value = '#ffffff';
         if (btnTextBold) btnTextBold.classList.add('active');
         if (btnTextItalic) btnTextItalic.classList.remove('active');
@@ -706,6 +775,44 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.toggle('active', btn.dataset.color.toLowerCase() === '#0ea5e9');
         });
         if (btnLockAspect) btnLockAspect.classList.add('active');
+
+        // Overlay State & Controls Reset
+        studioState.overlay = {
+            img: null,
+            filename: '',
+            size: 35,
+            x: 0.82,
+            y: 0.82,
+            opacity: 100
+        };
+        const inputOverlayFile = document.getElementById('inputOverlayFile');
+        if (inputOverlayFile) inputOverlayFile.value = '';
+        const overlayEmptyState = document.getElementById('overlayEmptyState');
+        const overlayLoadedState = document.getElementById('overlayLoadedState');
+        const overlayControlsPanel = document.getElementById('overlayControlsPanel');
+        if (overlayEmptyState) overlayEmptyState.style.display = 'flex';
+        if (overlayLoadedState) overlayLoadedState.style.display = 'none';
+        if (overlayControlsPanel) overlayControlsPanel.style.display = 'none';
+        const rangeOverlaySize = document.getElementById('rangeOverlaySize');
+        const valOverlaySize = document.getElementById('valOverlaySize');
+        if (rangeOverlaySize) rangeOverlaySize.value = 35;
+        if (valOverlaySize) valOverlaySize.textContent = '35%';
+        const rangeOverlayOpacity = document.getElementById('rangeOverlayOpacity');
+        const valOverlayOpacity = document.getElementById('valOverlayOpacity');
+        if (rangeOverlayOpacity) rangeOverlayOpacity.value = 100;
+        if (valOverlayOpacity) valOverlayOpacity.textContent = '100%';
+        const rangeOverlayPosX = document.getElementById('rangeOverlayPosX');
+        const valOverlayPosX = document.getElementById('valOverlayPosX');
+        if (rangeOverlayPosX) rangeOverlayPosX.value = 82;
+        if (valOverlayPosX) valOverlayPosX.textContent = '82%';
+        const rangeOverlayPosY = document.getElementById('rangeOverlayPosY');
+        const valOverlayPosY = document.getElementById('valOverlayPosY');
+        if (rangeOverlayPosY) rangeOverlayPosY.value = 82;
+        if (valOverlayPosY) valOverlayPosY.textContent = '82%';
+        document.querySelectorAll('.overlay-size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === '35'));
+        document.querySelectorAll('.overlay-op-btn').forEach(b => b.classList.toggle('active', b.dataset.opacity === '100'));
+        document.querySelectorAll('.overlay-align-btn').forEach(b => b.classList.toggle('active', b.dataset.align === 'br'));
+
         if (typeof switchStudioCategory === 'function') switchStudioCategory('core');
     }
 
@@ -807,8 +914,13 @@ document.addEventListener('DOMContentLoaded', () => {
             ratioW = sqSize;
             ratioH = sqSize;
         } else if (studioState.aspectRatio !== 'free') {
-            const parts = studioState.aspectRatio.split(':').map(Number);
-            const targetRatio = parts[0] / parts[1];
+            let targetRatio = 1;
+            if (studioState.aspectRatio === '1920:1080') {
+                targetRatio = 1920 / 1080;
+            } else {
+                const parts = studioState.aspectRatio.split(':').map(Number);
+                targetRatio = parts[0] / parts[1];
+            }
             const currentRatio = rotW / rotH;
 
             if (currentRatio > targetRatio) {
@@ -829,9 +941,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const croppedW = Math.max(30, ratioW - mLeft - mRight);
         const croppedH = Math.max(30, ratioH - mTop - mBottom);
 
+        // Photo Zoom multiplier (1.0 to 3.0)
+        const zoom = Math.max(1.0, Math.min(3.0, (studioState.cropZoom || 100) / 100));
+        const drawW = Math.round((isSideways ? origH : origW) * zoom);
+        const drawH = Math.round((isSideways ? origW : origH) * zoom);
+
+        // Calculate framing pan slack (how much the image extends outside the crop window)
+        const availSlackX = Math.max(0, (drawW - croppedW) / 2);
+        const availSlackY = Math.max(0, (drawH - croppedH) / 2);
+
+        // Effective slack: if there is slack, stay strictly within the photo boundaries; if no slack, allow soft framing offset
+        const effectiveSlackX = availSlackX > 0 ? availSlackX : Math.round(croppedW * 0.4);
+        const effectiveSlackY = availSlackY > 0 ? availSlackY : Math.round(croppedH * 0.4);
+
+        // Framing translation:
+        // panX = -100 (Left) -> shift image right (+effectiveSlackX) to show the LEFT side of the photo
+        // panX = +100 (Right) -> shift image left (-effectiveSlackX) to show the RIGHT side of the photo
+        const panPixelX = - (studioState.cropPan.x / 100) * effectiveSlackX;
+
+        // panY = -100 (Top) -> shift image down (+effectiveSlackY) to show the TOP side of the photo
+        // panY = +100 (Bottom) -> shift image up (-effectiveSlackY) to show the BOTTOM side of the photo
+        const panPixelY = - (studioState.cropPan.y / 100) * effectiveSlackY;
+
         // Determine Final Target Dimensions:
         // CROP / CHOP ONLY CUTS THE PICTURE (NEVER EXTRUDES OR STRETCHES IT).
-        // Final canvas dimensions match the cropped size 1:1 unless the user explicitly used the Resize tool.
+        // Final canvas dimensions match the cropped size 1:1 unless the user explicitly used the Resize tool or selected 1920x1080.
         let finalW = croppedW;
         let finalH = croppedH;
 
@@ -840,6 +974,20 @@ document.addEventListener('DOMContentLoaded', () => {
             finalH = studioState.resize.customHeight;
             if (origDimIndicator) {
                 origDimIndicator.textContent = `${croppedW} × ${croppedH} px → ${finalW} × ${finalH} px`;
+            }
+        } else if (studioState.aspectRatio === '1920:1080' || studioState.targetResolution) {
+            finalW = studioState.targetResolution ? studioState.targetResolution.width : 1920;
+            finalH = studioState.targetResolution ? studioState.targetResolution.height : 1080;
+            if (inputResizeWidth) {
+                inputResizeWidth.value = finalW;
+                inputResizeWidth.dataset.baseW = croppedW;
+            }
+            if (inputResizeHeight) {
+                inputResizeHeight.value = finalH;
+                inputResizeHeight.dataset.baseH = croppedH;
+            }
+            if (origDimIndicator) {
+                origDimIndicator.textContent = `${croppedW} × ${croppedH} px → ${finalW} × ${finalH} px (1920×1080 FHD)`;
             }
         } else {
             if (inputResizeWidth) {
@@ -877,9 +1025,12 @@ document.addEventListener('DOMContentLoaded', () => {
         offCtx.imageSmoothingEnabled = true;
         offCtx.imageSmoothingQuality = 'high';
 
-        // Draw Transformed Image with Center Alignment
+        // Draw Transformed Image with Center Alignment + User Framing Pan
         offCtx.save();
-        offCtx.translate(croppedW / 2 + (mRight - mLeft) / 2, croppedH / 2 + (mBottom - mTop) / 2);
+        offCtx.translate(
+            croppedW / 2 + (mRight - mLeft) / 2 + panPixelX,
+            croppedH / 2 + (mBottom - mTop) / 2 + panPixelY
+        );
         offCtx.rotate((studioState.rotation * Math.PI) / 180);
 
         const scaleX = studioState.flipH ? -1 : 1;
@@ -892,9 +1043,75 @@ document.addEventListener('DOMContentLoaded', () => {
             const drawH = isSideways ? ratioW : ratioH;
             offCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
         } else {
-            offCtx.drawImage(img, -origW / 2, -origH / 2, origW, origH);
+            // Draw image with zoom scaling applied
+            const unzoomedW = Math.round(origW * zoom);
+            const unzoomedH = Math.round(origH * zoom);
+            offCtx.drawImage(img, -unzoomedW / 2, -unzoomedH / 2, unzoomedW, unzoomedH);
         }
         offCtx.restore();
+
+        // Step 1.5: Draw Edge Blurring if active
+        if (studioState.edgeBlur > 0) {
+            if (studioState.edgeBlurMode === 'radial') {
+                // Perimeter Lens Blur: leaves center sharp, blurs outer edges & corners
+                const maxBlurPx = Math.max(6, Math.round(Math.min(croppedW, croppedH) * 0.08));
+                const blurPx = Math.max(1, Math.round((studioState.edgeBlur / 100) * maxBlurPx));
+
+                const blurCanvas = document.createElement('canvas');
+                blurCanvas.width = croppedW;
+                blurCanvas.height = croppedH;
+                const blurCtx = blurCanvas.getContext('2d');
+                if (blurCtx) {
+                    blurCtx.filter = `blur(${blurPx}px)`;
+                    blurCtx.drawImage(offCanvas, 0, 0);
+
+                    // Radial gradient mask: 0 (transparent) in center, 1 (opaque) at outer edges
+                    const maskCanvas = document.createElement('canvas');
+                    maskCanvas.width = croppedW;
+                    maskCanvas.height = croppedH;
+                    const maskCtx = maskCanvas.getContext('2d');
+                    if (maskCtx) {
+                        const cx = croppedW / 2;
+                        const cy = croppedH / 2;
+                        const radius = Math.max(croppedW, croppedH) * 0.72;
+                        const innerR = radius * Math.max(0.12, 0.45 - (studioState.edgeBlur / 250));
+                        const grad = maskCtx.createRadialGradient(cx, cy, innerR, cx, cy, radius);
+                        grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+                        grad.addColorStop(0.45, 'rgba(0, 0, 0, 0.25)');
+                        grad.addColorStop(1, 'rgba(0, 0, 0, 1.0)');
+
+                        maskCtx.fillStyle = grad;
+                        maskCtx.fillRect(0, 0, croppedW, croppedH);
+
+                        blurCtx.globalCompositeOperation = 'destination-in';
+                        blurCtx.drawImage(maskCanvas, 0, 0);
+
+                        offCtx.save();
+                        if (studioState.cropShape !== 'rect') {
+                            createShapePath(offCtx, studioState.cropShape, 0, 0, croppedW, croppedH);
+                            offCtx.clip();
+                        }
+                        offCtx.drawImage(blurCanvas, 0, 0);
+                        offCtx.restore();
+                    }
+                }
+            } else if (studioState.edgeBlurMode === 'feather') {
+                // Soft Border Feather: smoothly softens/feathers outer boundaries
+                offCtx.save();
+                offCtx.globalCompositeOperation = 'destination-in';
+                const cx = croppedW / 2;
+                const cy = croppedH / 2;
+                const radius = Math.max(croppedW, croppedH) * 0.72;
+                const featherInner = radius * Math.max(0.15, 1 - (studioState.edgeBlur / 100) * 0.55);
+                const fGrad = offCtx.createRadialGradient(cx, cy, featherInner, cx, cy, radius);
+                fGrad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
+                fGrad.addColorStop(0.75, `rgba(0, 0, 0, ${Math.max(0, 1 - (studioState.edgeBlur / 100) * 0.65)})`);
+                fGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                offCtx.fillStyle = fGrad;
+                offCtx.fillRect(0, 0, croppedW, croppedH);
+                offCtx.restore();
+            }
+        }
 
         // Step 2: Draw Vignette (Edge Shading) if active
         if (studioState.vignette > 0) {
@@ -921,6 +1138,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Step 3: Draw Text Overlay if present
         if (studioState.text.content.trim().length > 0) {
             offCtx.save();
+            const textAlpha = Math.max(0.05, Math.min(1.0, (studioState.text.opacity ?? 100) / 100));
+            offCtx.globalAlpha = textAlpha;
             const textX = croppedW * studioState.text.x;
             const textY = croppedH * studioState.text.y;
             const fontSize = Math.max(12, Math.round(studioState.text.size * (croppedW / 600)));
@@ -961,6 +1180,27 @@ document.addEventListener('DOMContentLoaded', () => {
             // 3. Fill Text with user's chosen word color on top
             offCtx.fillStyle = studioState.text.color;
             offCtx.fillText(studioState.text.content, textX, textY);
+            offCtx.restore();
+        }
+
+        // Step 3.5: Draw Overlay Image if loaded
+        if (studioState.overlay.img) {
+            const oImg = studioState.overlay.img;
+            const oW = oImg.naturalWidth || oImg.width;
+            const oH = oImg.naturalHeight || oImg.height;
+            const oAspect = (oW && oH) ? (oW / oH) : 1;
+            const overlayW = Math.round(croppedW * (studioState.overlay.size / 100));
+            const overlayH = Math.round(overlayW / oAspect);
+            const overlayX = Math.round(croppedW * studioState.overlay.x - overlayW / 2);
+            const overlayY = Math.round(croppedH * studioState.overlay.y - overlayH / 2);
+
+            offCtx.save();
+            if (studioState.cropShape !== 'rect') {
+                createShapePath(offCtx, studioState.cropShape, 0, 0, croppedW, croppedH);
+                offCtx.clip();
+            }
+            offCtx.globalAlpha = Math.max(0.05, Math.min(1.0, studioState.overlay.opacity / 100));
+            offCtx.drawImage(oImg, overlayX, overlayY, overlayW, overlayH);
             offCtx.restore();
         }
 
@@ -1017,7 +1257,8 @@ document.addEventListener('DOMContentLoaded', () => {
         chop_free: document.getElementById('tabContentChopFree'),
         resize: document.getElementById('tabContentResize'),
         vignette: document.getElementById('tabContentVignette'),
-        text: document.getElementById('tabContentText')
+        text: document.getElementById('tabContentText'),
+        overlay: document.getElementById('tabContentOverlay')
     };
 
     function activateStudioTab(targetTab) {
@@ -1033,9 +1274,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Update canvas cursor for text drag if text tab active
+        // Update canvas cursor for text drag or overlay drag if active
         if (studioCanvas) {
             studioCanvas.classList.toggle('dragging-text', targetTab === 'text');
+            studioCanvas.classList.toggle('dragging-overlay', targetTab === 'overlay');
         }
     }
 
@@ -1072,6 +1314,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ratioBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             studioState.aspectRatio = btn.dataset.ratio || 'free';
+            if (studioState.aspectRatio === '1920:1080') {
+                studioState.targetResolution = { width: 1920, height: 1080 };
+            } else {
+                studioState.targetResolution = null;
+            }
             // Clear extrude square & manual resize distortion
             studioState.extrudeSquare = false;
             updateExtrudeUI();
@@ -1079,6 +1326,9 @@ document.addEventListener('DOMContentLoaded', () => {
             studioState.resize.customWidth = 0;
             studioState.resize.customHeight = 0;
             document.querySelectorAll('.scale-btn').forEach(b => b.classList.toggle('active', b.dataset.scale === '1.0'));
+            document.querySelectorAll('.res-preset-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.width === '1920' && studioState.aspectRatio === '1920:1080');
+            });
             renderStudioCanvas();
         });
     });
@@ -1233,6 +1483,103 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Resolution Presets in Tab 5 (Resize)
+    const resPresetBtns = document.querySelectorAll('.res-preset-btn');
+    resPresetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            resPresetBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const targetW = parseInt(btn.dataset.width, 10);
+            const targetH = parseInt(btn.dataset.height, 10);
+            if (targetW > 20 && targetH > 20) {
+                studioState.resize.hasCustomResize = true;
+                studioState.resize.customWidth = targetW;
+                studioState.resize.customHeight = targetH;
+                studioState.targetResolution = { width: targetW, height: targetH };
+                if (inputResizeWidth) inputResizeWidth.value = targetW;
+                if (inputResizeHeight) inputResizeHeight.value = targetH;
+                document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('active'));
+                renderStudioCanvas();
+            }
+        });
+    });
+
+    // Photo Zoom Slider Listener
+    if (rangeCropZoom) {
+        rangeCropZoom.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 100;
+            studioState.cropZoom = val;
+            if (valCropZoom) valCropZoom.textContent = `${val}%`;
+            renderStudioCanvas();
+        });
+    }
+
+    // Photo Framing / Pan Controls
+    if (rangeCropPanX) {
+        rangeCropPanX.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 0;
+            studioState.cropPan.x = val;
+            if (valCropPanX) valCropPanX.textContent = `${val}%`;
+            updatePanQuickButtons();
+            renderStudioCanvas();
+        });
+    }
+
+    if (rangeCropPanY) {
+        rangeCropPanY.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 0;
+            studioState.cropPan.y = val;
+            if (valCropPanY) valCropPanY.textContent = `${val}%`;
+            updatePanQuickButtons();
+            renderStudioCanvas();
+        });
+    }
+
+    function updatePanQuickButtons() {
+        document.querySelectorAll('.pan-quick-btn').forEach(b => {
+            const bx = parseInt(b.dataset.panX, 10);
+            const by = parseInt(b.dataset.panY, 10);
+            b.classList.toggle('active', bx === studioState.cropPan.x && by === studioState.cropPan.y);
+        });
+    }
+
+    function resetPan() {
+        studioState.cropZoom = 100;
+        studioState.cropPan.x = 0;
+        studioState.cropPan.y = 0;
+        if (rangeCropZoom) rangeCropZoom.value = 100;
+        if (valCropZoom) valCropZoom.textContent = '100%';
+        if (rangeCropPanX) rangeCropPanX.value = 0;
+        if (valCropPanX) valCropPanX.textContent = '0%';
+        if (rangeCropPanY) rangeCropPanY.value = 0;
+        if (valCropPanY) valCropPanY.textContent = '0%';
+        updatePanQuickButtons();
+        renderStudioCanvas();
+    }
+
+    if (btnResetPan) {
+        btnResetPan.addEventListener('click', resetPan);
+    }
+
+    if (btnPanCenterQuick) {
+        btnPanCenterQuick.addEventListener('click', resetPan);
+    }
+
+    document.querySelectorAll('.pan-quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const px = parseInt(btn.dataset.panX, 10) || 0;
+            const py = parseInt(btn.dataset.panY, 10) || 0;
+            studioState.cropPan.x = px;
+            studioState.cropPan.y = py;
+            if (rangeCropPanX) rangeCropPanX.value = px;
+            if (valCropPanX) valCropPanX.textContent = `${px}%`;
+            if (rangeCropPanY) rangeCropPanY.value = py;
+            if (valCropPanY) valCropPanY.textContent = `${py}%`;
+            updatePanQuickButtons();
+            renderStudioCanvas();
+        });
+    });
+
     // 5. Turn & Flip Buttons
     const btnRotateLeft = document.getElementById('btnRotateLeft');
     const btnRotateRight = document.getElementById('btnRotateRight');
@@ -1281,6 +1628,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (valVignette) valVignette.textContent = '60%';
             }
 
+            renderStudioCanvas();
+        });
+    });
+
+    // Edge Blurring & Softness Controls
+    const rangeEdgeBlur = document.getElementById('rangeEdgeBlur');
+    const valEdgeBlur = document.getElementById('valEdgeBlur');
+    const btnEdgeBlurRadial = document.getElementById('btnEdgeBlurRadial');
+    const btnEdgeBlurFeather = document.getElementById('btnEdgeBlurFeather');
+    const edgePresetBtns = document.querySelectorAll('.edge-preset-btn');
+
+    if (rangeEdgeBlur && valEdgeBlur) {
+        rangeEdgeBlur.addEventListener('input', (e) => {
+            studioState.edgeBlur = parseInt(e.target.value, 10) || 0;
+            valEdgeBlur.textContent = `${studioState.edgeBlur}%`;
+            edgePresetBtns.forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.val, 10) === studioState.edgeBlur);
+            });
+            renderStudioCanvas();
+        });
+    }
+
+    if (btnEdgeBlurRadial) {
+        btnEdgeBlurRadial.addEventListener('click', () => {
+            studioState.edgeBlurMode = 'radial';
+            btnEdgeBlurRadial.classList.add('active');
+            if (btnEdgeBlurFeather) btnEdgeBlurFeather.classList.remove('active');
+            renderStudioCanvas();
+        });
+    }
+
+    if (btnEdgeBlurFeather) {
+        btnEdgeBlurFeather.addEventListener('click', () => {
+            studioState.edgeBlurMode = 'feather';
+            btnEdgeBlurFeather.classList.add('active');
+            if (btnEdgeBlurRadial) btnEdgeBlurRadial.classList.remove('active');
+            renderStudioCanvas();
+        });
+    }
+
+    edgePresetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const val = parseInt(btn.dataset.val, 10) || 0;
+            studioState.edgeBlur = val;
+            if (rangeEdgeBlur) rangeEdgeBlur.value = val;
+            if (valEdgeBlur) valEdgeBlur.textContent = `${val}%`;
+            edgePresetBtns.forEach(b => b.classList.toggle('active', b === btn));
             renderStudioCanvas();
         });
     });
@@ -1355,6 +1749,31 @@ document.addEventListener('DOMContentLoaded', () => {
             renderStudioCanvas();
         });
     }
+
+    if (rangeTextOpacity && valTextOpacity) {
+        rangeTextOpacity.addEventListener('input', (e) => {
+            const op = parseInt(e.target.value, 10) || 100;
+            studioState.text.opacity = op;
+            valTextOpacity.textContent = `${op}%`;
+            document.querySelectorAll('.text-op-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.opacity, 10) === op);
+            });
+            renderStudioCanvas();
+        });
+    }
+
+    const textOpBtns = document.querySelectorAll('.text-op-btn');
+    textOpBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const op = parseInt(btn.dataset.opacity, 10) || 100;
+            studioState.text.opacity = op;
+            if (rangeTextOpacity) rangeTextOpacity.value = op;
+            if (valTextOpacity) valTextOpacity.textContent = `${op}%`;
+            textOpBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderStudioCanvas();
+        });
+    });
 
     // Word Fill Color Picker & Swatches
     if (inputTextColor) {
@@ -1511,22 +1930,329 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Canvas Interactive Text Dragging
+    // ==========================================
+    // 8. Overlay Image (Picture-in-Picture) Handlers
+    // ==========================================
+    const inputOverlayFile = document.getElementById('inputOverlayFile');
+    const btnTriggerOverlayUpload = document.getElementById('btnTriggerOverlayUpload');
+    const btnChangeOverlay = document.getElementById('btnChangeOverlay');
+    const btnRemoveOverlay = document.getElementById('btnRemoveOverlay');
+    const overlayEmptyState = document.getElementById('overlayEmptyState');
+    const overlayLoadedState = document.getElementById('overlayLoadedState');
+    const overlayControlsPanel = document.getElementById('overlayControlsPanel');
+    const overlayThumbImg = document.getElementById('overlayThumbImg');
+    const overlayFileInfo = document.getElementById('overlayFileInfo');
+    const overlayDimInfo = document.getElementById('overlayDimInfo');
+
+    const rangeOverlaySize = document.getElementById('rangeOverlaySize');
+    const valOverlaySize = document.getElementById('valOverlaySize');
+    const overlaySizeBtns = document.querySelectorAll('.overlay-size-btn');
+
+    const rangeOverlayOpacity = document.getElementById('rangeOverlayOpacity');
+    const valOverlayOpacity = document.getElementById('valOverlayOpacity');
+    const overlayOpBtns = document.querySelectorAll('.overlay-op-btn');
+
+    const rangeOverlayPosX = document.getElementById('rangeOverlayPosX');
+    const valOverlayPosX = document.getElementById('valOverlayPosX');
+    const rangeOverlayPosY = document.getElementById('rangeOverlayPosY');
+    const valOverlayPosY = document.getElementById('valOverlayPosY');
+    const overlayAlignBtns = document.querySelectorAll('.overlay-align-btn');
+
+    if (btnTriggerOverlayUpload && inputOverlayFile) {
+        btnTriggerOverlayUpload.addEventListener('click', () => inputOverlayFile.click());
+    }
+
+    if (btnChangeOverlay && inputOverlayFile) {
+        btnChangeOverlay.addEventListener('click', () => inputOverlayFile.click());
+    }
+
+    if (inputOverlayFile) {
+        inputOverlayFile.addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const img = new Image();
+                img.onload = () => {
+                    studioState.overlay.img = img;
+                    studioState.overlay.filename = file.name;
+
+                    if (overlayThumbImg) overlayThumbImg.src = evt.target.result;
+                    if (overlayFileInfo) overlayFileInfo.textContent = file.name;
+                    if (overlayDimInfo) overlayDimInfo.textContent = `${img.naturalWidth || img.width} × ${img.naturalHeight || img.height} px`;
+
+                    if (overlayEmptyState) overlayEmptyState.style.display = 'none';
+                    if (overlayLoadedState) overlayLoadedState.style.display = 'flex';
+                    if (overlayControlsPanel) overlayControlsPanel.style.display = 'block';
+
+                    renderStudioCanvas();
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    if (btnRemoveOverlay) {
+        btnRemoveOverlay.addEventListener('click', () => {
+            studioState.overlay.img = null;
+            studioState.overlay.filename = '';
+            if (inputOverlayFile) inputOverlayFile.value = '';
+            if (overlayThumbImg) overlayThumbImg.src = '';
+
+            if (overlayEmptyState) overlayEmptyState.style.display = 'flex';
+            if (overlayLoadedState) overlayLoadedState.style.display = 'none';
+            if (overlayControlsPanel) overlayControlsPanel.style.display = 'none';
+
+            renderStudioCanvas();
+        });
+    }
+
+    // Size / Scale Handlers
+    if (rangeOverlaySize && valOverlaySize) {
+        rangeOverlaySize.addEventListener('input', (e) => {
+            const size = parseInt(e.target.value, 10) || 35;
+            studioState.overlay.size = size;
+            valOverlaySize.textContent = `${size}%`;
+            overlaySizeBtns.forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.size, 10) === size);
+            });
+            renderStudioCanvas();
+        });
+    }
+
+    overlaySizeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const size = parseInt(btn.dataset.size, 10) || 35;
+            studioState.overlay.size = size;
+            if (rangeOverlaySize) rangeOverlaySize.value = size;
+            if (valOverlaySize) valOverlaySize.textContent = `${size}%`;
+            overlaySizeBtns.forEach(b => b.classList.toggle('active', b === btn));
+            renderStudioCanvas();
+        });
+    });
+
+    // Transparency / Opacity Handlers
+    if (rangeOverlayOpacity && valOverlayOpacity) {
+        rangeOverlayOpacity.addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value, 10) || 100;
+            studioState.overlay.opacity = opacity;
+            valOverlayOpacity.textContent = `${opacity}%`;
+            overlayOpBtns.forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.opacity, 10) === opacity);
+            });
+            renderStudioCanvas();
+        });
+    }
+
+    overlayOpBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const opacity = parseInt(btn.dataset.opacity, 10) || 100;
+            studioState.overlay.opacity = opacity;
+            if (rangeOverlayOpacity) rangeOverlayOpacity.value = opacity;
+            if (valOverlayOpacity) valOverlayOpacity.textContent = `${opacity}%`;
+            overlayOpBtns.forEach(b => b.classList.toggle('active', b === btn));
+            renderStudioCanvas();
+        });
+    });
+
+    // Position X & Y Sliders
+    if (rangeOverlayPosX && valOverlayPosX) {
+        rangeOverlayPosX.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 0;
+            studioState.overlay.x = val / 100;
+            valOverlayPosX.textContent = `${val}%`;
+            overlayAlignBtns.forEach(btn => btn.classList.remove('active'));
+            renderStudioCanvas();
+        });
+    }
+
+    if (rangeOverlayPosY && valOverlayPosY) {
+        rangeOverlayPosY.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 0;
+            studioState.overlay.y = val / 100;
+            valOverlayPosY.textContent = `${val}%`;
+            overlayAlignBtns.forEach(btn => btn.classList.remove('active'));
+            renderStudioCanvas();
+        });
+    }
+
+    // 5-Point Quick Alignment Presets
+    const alignCoords = {
+        tl: { x: 0.18, y: 0.18 },
+        center: { x: 0.5, y: 0.5 },
+        tr: { x: 0.82, y: 0.18 },
+        bl: { x: 0.18, y: 0.82 },
+        br: { x: 0.82, y: 0.82 }
+    };
+
+    overlayAlignBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.align;
+            const coords = alignCoords[key];
+            if (coords) {
+                studioState.overlay.x = coords.x;
+                studioState.overlay.y = coords.y;
+                const pctX = Math.round(coords.x * 100);
+                const pctY = Math.round(coords.y * 100);
+                if (rangeOverlayPosX) rangeOverlayPosX.value = pctX;
+                if (valOverlayPosX) valOverlayPosX.textContent = `${pctX}%`;
+                if (rangeOverlayPosY) rangeOverlayPosY.value = pctY;
+                if (valOverlayPosY) valOverlayPosY.textContent = `${pctY}%`;
+                overlayAlignBtns.forEach(b => b.classList.toggle('active', b === btn));
+                renderStudioCanvas();
+            }
+        });
+    });
+
+    // Canvas Interactive Dragging (Text Dragging, Overlay Dragging, or Photo Framing Pan)
     function handleCanvasPointerDown(e) {
-        if (!studioState.text.content) return;
-        studioState.isDraggingText = true;
-        studioCanvas.classList.add('is-dragging');
-        updateTextPositionFromEvent(e);
+        if (!studioState.sourceImg || !studioCanvas) return;
+
+        const activeTabContent = document.querySelector('.studio-tab-content.active');
+        const isTextTab = activeTabContent && activeTabContent.id === 'tabContentText';
+        const hasText = studioState.text.content && studioState.text.content.trim().length > 0;
+
+        const isOverlayTab = activeTabContent && activeTabContent.id === 'tabContentOverlay';
+        const hasOverlay = !!studioState.overlay.img;
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        if (isTextTab && hasText) {
+            studioState.isDraggingText = true;
+            studioCanvas.classList.add('is-dragging');
+            updateTextPositionFromEvent(e);
+        } else if (isOverlayTab && hasOverlay) {
+            studioState.isDraggingOverlay = true;
+            studioCanvas.classList.add('is-dragging');
+            updateOverlayPositionFromEvent(e);
+        } else {
+            // Interactive Photo Framing Pan within Crop/Chop window
+            studioState.isPanningPhoto = true;
+            studioState.panStart = { x: clientX, y: clientY };
+            studioState.panInitialState = { x: studioState.cropPan.x, y: studioState.cropPan.y };
+            studioCanvas.classList.add('is-panning');
+            if (e.cancelable && e.type.startsWith('touch')) {
+                e.preventDefault();
+            }
+        }
     }
 
     function handleCanvasPointerMove(e) {
-        if (!studioState.isDraggingText) return;
-        updateTextPositionFromEvent(e);
+        if (studioState.isDraggingText) {
+            updateTextPositionFromEvent(e);
+            return;
+        }
+
+        if (studioState.isDraggingOverlay) {
+            updateOverlayPositionFromEvent(e);
+            return;
+        }
+
+        if (!studioState.isPanningPhoto || !studioCanvas || !studioState.sourceImg) return;
+
+        if (e.cancelable && e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const deltaScreenX = clientX - studioState.panStart.x;
+        const deltaScreenY = clientY - studioState.panStart.y;
+
+        const rect = studioCanvas.getBoundingClientRect();
+        if (rect.width < 10 || rect.height < 10) return;
+
+        // Calculate current oriented and cropped dimensions
+        const img = studioState.sourceImg;
+        const origW = img.naturalWidth || img.width;
+        const origH = img.naturalHeight || img.height;
+        const isSideways = studioState.rotation === 90 || studioState.rotation === 270;
+        const rotW = isSideways ? origH : origW;
+        const rotH = isSideways ? origW : origH;
+
+        let ratioW = rotW;
+        let ratioH = rotH;
+        if (studioState.aspectRatio !== 'free' && !studioState.extrudeSquare) {
+            let targetRatio = 1;
+            if (studioState.aspectRatio === '1920:1080') {
+                targetRatio = 1920 / 1080;
+            } else {
+                const parts = studioState.aspectRatio.split(':').map(Number);
+                targetRatio = parts[0] / parts[1];
+            }
+            const currentRatio = rotW / rotH;
+            if (currentRatio > targetRatio) {
+                ratioH = rotH;
+                ratioW = Math.round(rotH * targetRatio);
+            } else {
+                ratioW = rotW;
+                ratioH = Math.round(rotW / targetRatio);
+            }
+        }
+
+        const mTop = Math.round(ratioH * (studioState.cropMargins.top / 100));
+        const mBottom = Math.round(ratioH * (studioState.cropMargins.bottom / 100));
+        const mLeft = Math.round(ratioW * (studioState.cropMargins.left / 100));
+        const mRight = Math.round(ratioW * (studioState.cropMargins.right / 100));
+
+        const croppedW = Math.max(30, ratioW - mLeft - mRight);
+        const croppedH = Math.max(30, ratioH - mTop - mBottom);
+
+        const zoom = Math.max(1.0, Math.min(3.0, (studioState.cropZoom || 100) / 100));
+        const drawW = Math.round((isSideways ? origH : origW) * zoom);
+        const drawH = Math.round((isSideways ? origW : origH) * zoom);
+
+        const availSlackX = Math.max(0, (drawW - croppedW) / 2);
+        const availSlackY = Math.max(0, (drawH - croppedH) / 2);
+
+        const effectiveSlackX = availSlackX > 0 ? availSlackX : Math.round(croppedW * 0.4);
+        const effectiveSlackY = availSlackY > 0 ? availSlackY : Math.round(croppedH * 0.4);
+
+        // Scale factor: display to internal cropped pixels
+        const scaleFactorX = croppedW / rect.width;
+        const scaleFactorY = croppedH / rect.height;
+
+        const deltaCanvasX = deltaScreenX * scaleFactorX;
+        const deltaCanvasY = deltaScreenY * scaleFactorY;
+
+        const deltaPercentX = effectiveSlackX > 0 ? (deltaCanvasX / effectiveSlackX) * 100 : 0;
+        const deltaPercentY = effectiveSlackY > 0 ? (deltaCanvasY / effectiveSlackY) * 100 : 0;
+
+        // Dragging right pulls photo right -> frames towards Left (-100)
+        const newPanX = Math.max(-100, Math.min(100, Math.round(studioState.panInitialState.x - deltaPercentX)));
+        // Dragging down pulls photo down -> frames towards Top (-100)
+        const newPanY = Math.max(-100, Math.min(100, Math.round(studioState.panInitialState.y - deltaPercentY)));
+
+        studioState.cropPan.x = newPanX;
+        studioState.cropPan.y = newPanY;
+
+        // Synchronize UI
+        if (rangeCropPanX) rangeCropPanX.value = newPanX;
+        if (valCropPanX) valCropPanX.textContent = `${newPanX}%`;
+        if (rangeCropPanY) rangeCropPanY.value = newPanY;
+        if (valCropPanY) valCropPanY.textContent = `${newPanY}%`;
+
+        document.querySelectorAll('.pan-quick-btn').forEach(b => {
+            const bx = parseInt(b.dataset.panX, 10);
+            const by = parseInt(b.dataset.panY, 10);
+            b.classList.toggle('active', bx === newPanX && by === newPanY);
+        });
+
+        renderStudioCanvas();
     }
 
     function handleCanvasPointerUp() {
         studioState.isDraggingText = false;
-        if (studioCanvas) studioCanvas.classList.remove('is-dragging');
+        studioState.isDraggingOverlay = false;
+        studioState.isPanningPhoto = false;
+        if (studioCanvas) {
+            studioCanvas.classList.remove('is-dragging');
+            studioCanvas.classList.remove('is-panning');
+        }
     }
 
     function updateTextPositionFromEvent(e) {
@@ -1543,14 +2269,63 @@ document.addEventListener('DOMContentLoaded', () => {
         renderStudioCanvas();
     }
 
+    function updateOverlayPositionFromEvent(e) {
+        if (!studioCanvas || !studioState.overlay.img) return;
+        const rect = studioCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const relX = Math.max(0.05, Math.min(0.95, (clientX - rect.left) / rect.width));
+        const relY = Math.max(0.05, Math.min(0.95, (clientY - rect.top) / rect.height));
+
+        studioState.overlay.x = relX;
+        studioState.overlay.y = relY;
+
+        const pctX = Math.round(relX * 100);
+        const pctY = Math.round(relY * 100);
+
+        const rangeOverlayPosX = document.getElementById('rangeOverlayPosX');
+        const valOverlayPosX = document.getElementById('valOverlayPosX');
+        const rangeOverlayPosY = document.getElementById('rangeOverlayPosY');
+        const valOverlayPosY = document.getElementById('valOverlayPosY');
+
+        if (rangeOverlayPosX) rangeOverlayPosX.value = pctX;
+        if (valOverlayPosX) valOverlayPosX.textContent = `${pctX}%`;
+        if (rangeOverlayPosY) rangeOverlayPosY.value = pctY;
+        if (valOverlayPosY) valOverlayPosY.textContent = `${pctY}%`;
+
+        document.querySelectorAll('.overlay-align-btn').forEach(btn => btn.classList.remove('active'));
+
+        renderStudioCanvas();
+    }
+
     if (studioCanvas) {
         studioCanvas.addEventListener('mousedown', handleCanvasPointerDown);
         window.addEventListener('mousemove', handleCanvasPointerMove);
         window.addEventListener('mouseup', handleCanvasPointerUp);
 
-        studioCanvas.addEventListener('touchstart', handleCanvasPointerDown, { passive: true });
-        window.addEventListener('touchmove', handleCanvasPointerMove, { passive: true });
+        studioCanvas.addEventListener('touchstart', handleCanvasPointerDown, { passive: false });
+        window.addEventListener('touchmove', handleCanvasPointerMove, { passive: false });
         window.addEventListener('touchend', handleCanvasPointerUp);
+        window.addEventListener('touchcancel', handleCanvasPointerUp);
+
+        // Mouse wheel zoom on canvas in Crop mode
+        studioCanvas.addEventListener('wheel', (e) => {
+            if (!studioState.sourceImg) return;
+            const activeTabContent = document.querySelector('.studio-tab-content.active');
+            const isTextTab = activeTabContent && activeTabContent.id === 'tabContentText';
+            const isOverlayTab = activeTabContent && activeTabContent.id === 'tabContentOverlay';
+            if (isTextTab || isOverlayTab) return;
+
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 8 : -8;
+            const currentZoom = studioState.cropZoom || 100;
+            const newZoom = Math.max(100, Math.min(300, currentZoom + delta));
+            studioState.cropZoom = newZoom;
+            if (rangeCropZoom) rangeCropZoom.value = newZoom;
+            if (valCropZoom) valCropZoom.textContent = `${newZoom}%`;
+            renderStudioCanvas();
+        }, { passive: false });
     }
 
     // Apply Changes back to Current Workflow View
