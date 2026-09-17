@@ -229,6 +229,11 @@ require_once __DIR__ . '/includes/languages.php';
                         <h4><?php echo htmlspecialchars(t('ui_studio_btn_title')); ?></h4>
                         <p><?php echo htmlspecialchars(t('ui_studio_btn_desc')); ?></p>
                     </div>
+
+                    <div class="ui-element-item">
+                        <h4><?php echo htmlspecialchars(t('ui_inside_mode_title')); ?></h4>
+                        <p><?php echo htmlspecialchars(t('ui_inside_mode_desc')); ?></p>
+                    </div>
                 </div>
             </div>
         </section>

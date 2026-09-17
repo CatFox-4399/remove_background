@@ -72,6 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const previewSize = document.getElementById('previewSize');
     const btnClearImage = document.getElementById('btnClearImage');
     const btnProcess = document.getElementById('btnProcess');
+    const btnProcessText = document.getElementById('btnProcessText');
+    const btnModeRemoveBg = document.getElementById('btnModeRemoveBg');
+    const btnModeRemoveInside = document.getElementById('btnModeRemoveInside');
 
     // DOM Elements - Processing State
     const processingCard = document.getElementById('processingCard');
@@ -83,6 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const processedResultImg = document.getElementById('processedResultImg');
     const btnUploadAnother = document.getElementById('btnUploadAnother');
     const btnDownload = document.getElementById('btnDownload');
+    const btnDownloadText = document.getElementById('btnDownloadText');
+    const btnSwitchBg = document.getElementById('btnSwitchBg');
+    const btnSwitchInside = document.getElementById('btnSwitchInside');
+    const resultStatusBadge = document.getElementById('resultStatusBadge');
+    const resultBadgeText = document.getElementById('resultBadgeText');
+    const resultStatusSub = document.getElementById('resultStatusSub');
 
     // DOM Elements - Alerts
     const errorAlert = document.getElementById('errorAlert');
@@ -94,6 +103,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedDataUrl = null;
     let isProcessing = false;
     let stageInterval = null;
+    let selectedCutoutMode = 'bg'; // 'bg' (keep subject) or 'inside' (keep background)
+    let activeCutoutMode = 'bg';
+    let activeResultId = null;
+    let cachedBgUrl = null;
+    let cachedInsideDataUrl = null;
+    let hasServerInside = false;
 
     // Constraints
     const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB in bytes
@@ -225,6 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
         isProcessing = false;
         selectedFile = null;
         selectedDataUrl = null;
+        activeResultId = null;
+        cachedBgUrl = null;
+        cachedInsideDataUrl = null;
+        hasServerInside = false;
+        selectedCutoutMode = 'bg';
+        activeCutoutMode = 'bg';
 
         if (fileInput) fileInput.value = '';
         if (previewImg) previewImg.src = '';
@@ -233,7 +254,48 @@ document.addEventListener('DOMContentLoaded', () => {
         if (resultSection) resultSection.classList.remove('show');
         if (dropzone) dropzone.style.display = 'block';
 
+        if (btnModeRemoveBg && btnModeRemoveInside) {
+            btnModeRemoveBg.classList.add('active');
+            btnModeRemoveBg.setAttribute('aria-checked', 'true');
+            btnModeRemoveInside.classList.remove('active');
+            btnModeRemoveInside.setAttribute('aria-checked', 'false');
+        }
+        if (btnProcessText) {
+            btnProcessText.textContent = i18n.btnRemoveBg || 'Remove Background';
+        }
+        if (btnSwitchBg && btnSwitchInside) {
+            btnSwitchBg.classList.add('active');
+            btnSwitchBg.setAttribute('aria-selected', 'true');
+            btnSwitchInside.classList.remove('active');
+            btnSwitchInside.setAttribute('aria-selected', 'false');
+        }
+
         if (btnProcess) btnProcess.disabled = false;
+    }
+
+    // Mode Selector on Preview Card (Remove Background vs Remove Inside)
+    if (btnModeRemoveBg && btnModeRemoveInside) {
+        btnModeRemoveBg.addEventListener('click', () => {
+            selectedCutoutMode = 'bg';
+            btnModeRemoveBg.classList.add('active');
+            btnModeRemoveBg.setAttribute('aria-checked', 'true');
+            btnModeRemoveInside.classList.remove('active');
+            btnModeRemoveInside.setAttribute('aria-checked', 'false');
+            if (btnProcessText) {
+                btnProcessText.textContent = i18n.btnRemoveBg || 'Remove Background';
+            }
+        });
+
+        btnModeRemoveInside.addEventListener('click', () => {
+            selectedCutoutMode = 'inside';
+            btnModeRemoveInside.classList.add('active');
+            btnModeRemoveInside.setAttribute('aria-checked', 'true');
+            btnModeRemoveBg.classList.remove('active');
+            btnModeRemoveBg.setAttribute('aria-checked', 'false');
+            if (btnProcessText) {
+                btnProcessText.textContent = i18n.btnRemoveInside || 'Remove Inside (Reverse)';
+            }
+        });
     }
 
     // ==========================================
@@ -368,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Success: display result view
                 const resultId = data.result;
-                displayResult(resultId);
+                displayResult(resultId, data.has_inside);
 
             } catch (err) {
                 clearInterval(stageInterval);
@@ -384,10 +446,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Render the processed result side-by-side
+     * Generate reverse cutout (keep background, transparent subject inside) using client canvas
      */
-    function displayResult(resultId) {
+    function generateInsideCutoutDataUrl(origUrl, cutoutUrl) {
+        return new Promise((resolve) => {
+            if (!origUrl || !cutoutUrl) return resolve(null);
+
+            const origImg = new Image();
+            origImg.crossOrigin = 'anonymous';
+
+            origImg.onload = () => {
+                const cutImg = new Image();
+                cutImg.crossOrigin = 'anonymous';
+
+                cutImg.onload = () => {
+                    const w = origImg.naturalWidth || origImg.width;
+                    const h = origImg.naturalHeight || origImg.height;
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return resolve(null);
+
+                    // 1. Draw full original image (background + subject)
+                    ctx.drawImage(origImg, 0, 0, w, h);
+
+                    // 2. Erase foreground subject using destination-out
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.drawImage(cutImg, 0, 0, w, h);
+
+                    try {
+                        const dataUrl = canvas.toDataURL('image/png');
+                        resolve(dataUrl);
+                    } catch (e) {
+                        resolve(null);
+                    }
+                };
+
+                cutImg.onerror = () => resolve(null);
+                cutImg.src = cutoutUrl;
+            };
+
+            origImg.onerror = () => resolve(null);
+            origImg.src = origUrl;
+        });
+    }
+
+    /**
+     * Render the processed result with instant mode switching
+     */
+    function displayResult(resultId, hasInside) {
         isProcessing = false;
+        activeResultId = resultId;
+        hasServerInside = !!hasInside;
+        activeCutoutMode = selectedCutoutMode; // Start with the mode user chose before processing
+        cachedInsideDataUrl = null;
 
         if (processingCard) processingCard.classList.remove('show');
 
@@ -396,22 +510,102 @@ document.addEventListener('DOMContentLoaded', () => {
             originalResultImg.src = selectedDataUrl;
         }
 
-        // Set processed image preview via download endpoint with preview=1
-        const previewUrl = `api/download.php?id=${encodeURIComponent(resultId)}&preview=1`;
-        if (processedResultImg) {
-            processedResultImg.src = previewUrl;
-        }
+        cachedBgUrl = `api/download.php?id=${encodeURIComponent(resultId)}&preview=1`;
 
-        // Configure Download button
-        if (btnDownload) {
-            btnDownload.href = `api/download.php?id=${encodeURIComponent(resultId)}`;
-        }
+        // Precompute client-side inside cutout asynchronously (takes ~15ms)
+        generateInsideCutoutDataUrl(selectedDataUrl, cachedBgUrl).then((insideUrl) => {
+            if (insideUrl) {
+                cachedInsideDataUrl = insideUrl;
+                if (activeCutoutMode === 'inside') {
+                    if (processedResultImg) processedResultImg.src = insideUrl;
+                    if (btnDownload) btnDownload.href = insideUrl;
+                }
+            }
+        });
+
+        // Apply selected mode immediately
+        applyResultCutoutMode(activeCutoutMode);
 
         // Show result section
         if (resultSection) {
             resultSection.classList.add('show');
             resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+    }
+
+    /**
+     * Switch live cutout view between Remove Background and Remove Inside
+     */
+    function applyResultCutoutMode(mode) {
+        activeCutoutMode = mode;
+
+        if (mode === 'bg') {
+            if (btnSwitchBg) {
+                btnSwitchBg.classList.add('active');
+                btnSwitchBg.setAttribute('aria-selected', 'true');
+            }
+            if (btnSwitchInside) {
+                btnSwitchInside.classList.remove('active');
+                btnSwitchInside.setAttribute('aria-selected', 'false');
+            }
+            if (processedResultImg && cachedBgUrl) {
+                processedResultImg.src = cachedBgUrl;
+            }
+            if (btnDownload && activeResultId) {
+                btnDownload.href = `api/download.php?id=${encodeURIComponent(activeResultId)}`;
+                btnDownload.download = 'no-bg.png';
+            }
+            if (btnDownloadText) {
+                btnDownloadText.textContent = i18n.downloadPng || 'Download PNG';
+            }
+            if (resultBadgeText) {
+                resultBadgeText.textContent = i18n.bgRemoved || 'Background Removed';
+            }
+            if (resultStatusSub) {
+                resultStatusSub.textContent = i18n.pngReady || 'Transparent PNG Ready';
+            }
+            if (resultStatusBadge) {
+                resultStatusBadge.classList.remove('badge-reverse');
+            }
+        } else {
+            // mode === 'inside'
+            if (btnSwitchInside) {
+                btnSwitchInside.classList.add('active');
+                btnSwitchInside.setAttribute('aria-selected', 'true');
+            }
+            if (btnSwitchBg) {
+                btnSwitchBg.classList.remove('active');
+                btnSwitchBg.setAttribute('aria-selected', 'false');
+            }
+
+            const serverFallbackUrl = `api/download.php?id=${encodeURIComponent(activeResultId)}&mode=inside&preview=1`;
+            if (processedResultImg) {
+                processedResultImg.src = cachedInsideDataUrl || serverFallbackUrl;
+            }
+            if (btnDownload && activeResultId) {
+                btnDownload.href = cachedInsideDataUrl || `api/download.php?id=${encodeURIComponent(activeResultId)}&mode=inside`;
+                btnDownload.download = 'removed-inside.png';
+            }
+            if (btnDownloadText) {
+                btnDownloadText.textContent = i18n.downloadInsidePng || 'Download Hollow PNG';
+            }
+            if (resultBadgeText) {
+                resultBadgeText.textContent = i18n.insideRemoved || 'Inside Removed (Reverse Cutout)';
+            }
+            if (resultStatusSub) {
+                resultStatusSub.textContent = i18n.insidePngReady || 'Hollow Cutout PNG Ready';
+            }
+            if (resultStatusBadge) {
+                resultStatusBadge.classList.add('badge-reverse');
+            }
+        }
+    }
+
+    if (btnSwitchBg) {
+        btnSwitchBg.addEventListener('click', () => applyResultCutoutMode('bg'));
+    }
+    if (btnSwitchInside) {
+        btnSwitchInside.addEventListener('click', () => applyResultCutoutMode('inside'));
     }
 
     // ==========================================
@@ -433,11 +627,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const rangeContrast = document.getElementById('rangeContrast');
     const rangeSaturation = document.getElementById('rangeSaturation');
     const rangeVignette = document.getElementById('rangeVignette');
+    const inputVignetteColor = document.getElementById('inputVignetteColor');
+    const hexVignetteColor = document.getElementById('hexVignetteColor');
 
     const valBrightness = document.getElementById('valBrightness');
     const valContrast = document.getElementById('valContrast');
     const valSaturation = document.getElementById('valSaturation');
     const valVignette = document.getElementById('valVignette');
+
+    // Hue Rotate
+    const rangeHueRotate = document.getElementById('rangeHueRotate');
+    const valHueRotate = document.getElementById('valHueRotate');
+
+    // Picture Transparency / Opacity Controls
+    const rangePictureOpacity = document.getElementById('rangePictureOpacity');
+    const valPictureOpacity = document.getElementById('valPictureOpacity');
+    const picOpBtns = document.querySelectorAll('.pic-op-btn');
+
+    // Cutout & Picture Drop Shadow Controls
+    const btnCutoutShadow = document.getElementById('btnCutoutShadow');
+    const statusCutoutShadow = document.getElementById('statusCutoutShadow');
+    const cutoutShadowBody = document.getElementById('cutoutShadowBody');
+    const shadowPresetBtns = document.querySelectorAll('.shadow-preset-btn');
+    const inputShadowColor = document.getElementById('inputShadowColor');
+    const hexShadowColor = document.getElementById('hexShadowColor');
+    const rangeShadowBlur = document.getElementById('rangeShadowBlur');
+    const valShadowBlur = document.getElementById('valShadowBlur');
+    const rangeShadowOpacity = document.getElementById('rangeShadowOpacity');
+    const valShadowOpacity = document.getElementById('valShadowOpacity');
+    const rangeShadowOffsetX = document.getElementById('rangeShadowOffsetX');
+    const valShadowOffsetX = document.getElementById('valShadowOffsetX');
+    const rangeShadowOffsetY = document.getElementById('rangeShadowOffsetY');
+    const valShadowOffsetY = document.getElementById('valShadowOffsetY');
+
+    // Free Cut & Shape Chopper Controls
+    const btnShapeFreeCut = document.getElementById('btnShapeFreeCut');
+    const freeCutToolbar = document.getElementById('freeCutToolbar');
+    const valFreeCutPoints = document.getElementById('valFreeCutPoints');
+    const btnFreeCutModeLasso = document.getElementById('btnFreeCutModeLasso');
+    const btnFreeCutModePolygon = document.getElementById('btnFreeCutModePolygon');
+    const freeCutModeBtns = document.querySelectorAll('.freecut-mode-btn');
+    const btnFreeCutFinish = document.getElementById('btnFreeCutFinish');
+    const btnFreeCutUndo = document.getElementById('btnFreeCutUndo');
+    const btnFreeCutReset = document.getElementById('btnFreeCutReset');
+    const freeCutHint = document.getElementById('freeCutHint');
+
+    // Cutout & Shape Border Stroke Controls
+    const btnShapeStroke = document.getElementById('btnShapeStroke');
+    const statusShapeStroke = document.getElementById('statusShapeStroke');
+    const shapeStrokeBody = document.getElementById('shapeStrokeBody');
+    const shapeStrokeStyleBtns = document.querySelectorAll('.shape-stroke-style-btn');
+    const inputShapeStrokeColor = document.getElementById('inputShapeStrokeColor');
+    const hexShapeStrokeColor = document.getElementById('hexShapeStrokeColor');
+    const rangeShapeStrokeWidth = document.getElementById('rangeShapeStrokeWidth');
+    const valShapeStrokeWidth = document.getElementById('valShapeStrokeWidth');
 
     // Freeform Crop Margin Controls
     const rangeCropTop = document.getElementById('rangeCropTop');
@@ -450,6 +693,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const valCropLeft = document.getElementById('valCropLeft');
     const valCropRight = document.getElementById('valCropRight');
 
+    // Free Chop Controls
+    const btnFreeChopSquare = document.getElementById('btnFreeChopSquare');
+    const btnFreeChopFit = document.getElementById('btnFreeChopFit');
+    const btnFreeChopReset = document.getElementById('btnFreeChopReset');
+    const badgeFreeChopStatus = document.getElementById('badgeFreeChopStatus');
+
     // Resize Elements
     const inputResizeWidth = document.getElementById('inputResizeWidth');
     const inputResizeHeight = document.getElementById('inputResizeHeight');
@@ -459,6 +708,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Photo Framing, Zoom & Pan Controls
     const rangeCropZoom = document.getElementById('rangeCropZoom');
     const valCropZoom = document.getElementById('valCropZoom');
+    const btnZoomOut = document.getElementById('btnZoomOut');
+    const btnZoomIn = document.getElementById('btnZoomIn');
+    const btnResetZoom = document.getElementById('btnResetZoom');
+    const btnFloatingZoomOut = document.getElementById('btnFloatingZoomOut');
+    const btnFloatingZoomIn = document.getElementById('btnFloatingZoomIn');
+    const btnFloatingZoomReset = document.getElementById('btnFloatingZoomReset');
+    const floatingZoomBadge = document.getElementById('floatingZoomBadge');
     const rangeCropPanX = document.getElementById('rangeCropPanX');
     const rangeCropPanY = document.getElementById('rangeCropPanY');
     const valCropPanX = document.getElementById('valCropPanX');
@@ -481,6 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputOutlineColor = document.getElementById('inputOutlineColor');
     const rangeOutlineWidth = document.getElementById('rangeOutlineWidth');
     const valOutlineWidth = document.getElementById('valOutlineWidth');
+    const textStrokeStyleBtns = document.querySelectorAll('.text-stroke-style-btn');
     // Glow elements
     const btnTextGlow = document.getElementById('btnTextGlow');
     const statusTextGlow = document.getElementById('statusTextGlow');
@@ -495,6 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Style & Position elements
     const btnTextBold = document.getElementById('btnTextBold');
     const btnTextItalic = document.getElementById('btnTextItalic');
+    const btnTextUnderline = document.getElementById('btnTextUnderline');
     const btnPosTop = document.getElementById('btnPosTop');
     const btnPosCenter = document.getElementById('btnPosCenter');
     const btnPosBottom = document.getElementById('btnPosBottom');
@@ -507,19 +765,50 @@ document.addEventListener('DOMContentLoaded', () => {
         flipH: false,
         flipV: false,
         aspectRatio: 'free',
-        cropShape: 'rect', // 'rect', 'circle', 'rounded', 'heart', 'star'
+        cropShape: 'rect', // 'rect', 'circle', 'rounded', 'heart', 'star', 'freecut'
         cropMargins: { top: 0, bottom: 0, left: 0, right: 0 },
-        cropZoom: 100,           // 100% to 300%
+        freeChop: {
+            draggingHandle: null,
+            isMovingBox: false,
+            isDrawingBox: false,
+            dragStart: null,
+            initialMargins: null
+        },
+        cropZoom: 100,           // 10% to 300% (supports zoom out to make image small)
         cropPan: { x: 0, y: 0 }, // -100 to 100 percentage (X: -100=Left, +100=Right; Y: -100=Top, +100=Bottom)
         targetResolution: null,  // { width: 1920, height: 1080 } when active
         activeFilter: 'normal',
+        pictureOpacity: 100,     // 5 to 100
+        hueRotate: 0,            // -180 to 180 deg
         vignette: 0,      // 0 to 100
+        vignetteColor: '#000000',
         edgeBlur: 0,      // 0 to 100
         edgeBlurMode: 'radial', // 'radial' or 'feather'
         brightness: 0,
         contrast: 0,
         saturation: 0,
         extrudeSquare: false, // Stretch whole image into 1:1 square without cutting
+        shadow: {
+            enabled: false,
+            preset: 'soft',
+            color: '#000000',
+            blur: 20,
+            opacity: 60,
+            offsetX: 10,
+            offsetY: 15
+        },
+        shapeStroke: {
+            enabled: false,
+            color: '#ffffff',
+            width: 6,
+            style: 'solid' // 'solid', 'dashed', 'dotted', 'double'
+        },
+        freecut: {
+            points: [],    // Array of {x, y} normalized (0 to 1) relative to crop box
+            isClosed: false,
+            mode: 'lasso', // 'lasso' or 'polygon'
+            isDrawing: false
+        },
         resize: {
             customWidth: 0,
             customHeight: 0,
@@ -534,9 +823,11 @@ document.addEventListener('DOMContentLoaded', () => {
             opacity: 100, // 5 to 100
             bold: true,
             italic: false,
+            underline: false,
             outline: true,
             outlineColor: '#000000',
             outlineWidth: 4,
+            strokeStyle: 'solid', // 'solid', 'dashed', 'dotted', 'double'
             glow: false,
             glowColor: '#0ea5e9',
             glowBlur: 14,
@@ -557,6 +848,22 @@ document.addEventListener('DOMContentLoaded', () => {
         panStart: { x: 0, y: 0 },
         panInitialState: { x: 0, y: 0 }
     };
+
+    /**
+     * Parse hex color string into RGB object
+     */
+    function hexToRgb(hex) {
+        let c = (hex || '#000000').replace('#', '').trim();
+        if (c.length === 3) {
+            c = c.split('').map(x => x + x).join('');
+        }
+        const num = parseInt(c, 16) || 0;
+        return {
+            r: (num >> 16) & 255,
+            g: (num >> 8) & 255,
+            b: num & 255
+        };
+    }
 
     /**
      * Create shape clipping path on canvas context
@@ -604,9 +911,75 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             ctx.lineTo(cx, cy - outerRadius);
             ctx.closePath();
+        } else if (shape === 'freecut') {
+            const pts = studioState.freecut.points;
+            if (pts && pts.length >= 2) {
+                ctx.moveTo(x + pts[0].x * w, y + pts[0].y * h);
+                for (let i = 1; i < pts.length; i++) {
+                    ctx.lineTo(x + pts[i].x * w, y + pts[i].y * h);
+                }
+                if (studioState.freecut.isClosed) {
+                    ctx.closePath();
+                }
+            } else {
+                ctx.rect(x, y, w, h);
+            }
         } else {
             ctx.rect(x, y, w, h);
         }
+    }
+
+    /**
+     * Calculate 8 Free Chop handles and bounding box
+     */
+    function getFreeChopHandles(ratioW, ratioH, margins) {
+        const mTop = Math.round(ratioH * ((margins.top || 0) / 100));
+        const mBottom = Math.round(ratioH * ((margins.bottom || 0) / 100));
+        const mLeft = Math.round(ratioW * ((margins.left || 0) / 100));
+        const mRight = Math.round(ratioW * ((margins.right || 0) / 100));
+
+        const x = mLeft;
+        const y = mTop;
+        const w = Math.max(20, ratioW - mLeft - mRight);
+        const h = Math.max(20, ratioH - mTop - mBottom);
+
+        return {
+            box: { x, y, w, h, mTop, mBottom, mLeft, mRight },
+            handles: {
+                tl: { x: x, y: y, cursor: 'nwse-resize' },
+                t:  { x: x + w / 2, y: y, cursor: 'ns-resize' },
+                tr: { x: x + w, y: y, cursor: 'nesw-resize' },
+                r:  { x: x + w, y: y + h / 2, cursor: 'ew-resize' },
+                br: { x: x + w, y: y + h, cursor: 'nwse-resize' },
+                b:  { x: x + w / 2, y: y + h, cursor: 'ns-resize' },
+                bl: { x: x, y: y + h, cursor: 'nesw-resize' },
+                l:  { x: x, y: y + h / 2, cursor: 'ew-resize' }
+            }
+        };
+    }
+
+    /**
+     * Hit test pointer against Free Chop handles and box
+     */
+    function hitTestFreeChop(canvasX, canvasY, ratioW, ratioH, margins, scaleRatio) {
+        const { box, handles } = getFreeChopHandles(ratioW, ratioH, margins);
+        const handleRadius = Math.max(16, 14 * scaleRatio);
+
+        // Check 8 handles
+        for (const key of ['tl', 'tr', 'br', 'bl', 't', 'r', 'b', 'l']) {
+            const h = handles[key];
+            if (Math.hypot(canvasX - h.x, canvasY - h.y) <= handleRadius) {
+                return { type: 'handle', handle: key, cursor: h.cursor };
+            }
+        }
+
+        // Check inside box
+        if (canvasX >= box.x && canvasX <= box.x + box.w && canvasY >= box.y && canvasY <= box.y + box.h) {
+            return { type: 'box', cursor: 'move' };
+        }
+
+        // Outside box
+        return { type: 'outside', cursor: 'crosshair' };
     }
 
     /**
@@ -619,10 +992,20 @@ document.addEventListener('DOMContentLoaded', () => {
         studioState.aspectRatio = 'free';
         studioState.cropShape = 'rect';
         studioState.cropMargins = { top: 0, bottom: 0, left: 0, right: 0 };
+        studioState.freeChop = {
+            draggingHandle: null,
+            isMovingBox: false,
+            isDrawingBox: false,
+            dragStart: null,
+            initialMargins: null
+        };
         studioState.cropPan = { x: 0, y: 0 };
         studioState.targetResolution = null;
         studioState.activeFilter = 'normal';
+        studioState.pictureOpacity = 100;
+        studioState.hueRotate = 0;
         studioState.vignette = 0;
+        studioState.vignetteColor = '#000000';
         studioState.edgeBlur = 0;
         studioState.edgeBlurMode = 'radial';
         studioState.brightness = 0;
@@ -633,6 +1016,83 @@ document.addEventListener('DOMContentLoaded', () => {
         studioState.resize.customHeight = 0;
         studioState.resize.hasCustomResize = false;
         if (typeof updateExtrudeUI === 'function') updateExtrudeUI();
+
+        // Reset Shadow State & UI
+        studioState.shadow = {
+            enabled: false,
+            preset: 'soft',
+            color: '#000000',
+            blur: 20,
+            opacity: 60,
+            offsetX: 10,
+            offsetY: 15
+        };
+        if (btnCutoutShadow) btnCutoutShadow.classList.remove('active');
+        if (statusCutoutShadow) statusCutoutShadow.textContent = 'OFF';
+        if (cutoutShadowBody) cutoutShadowBody.style.display = 'none';
+        if (inputShadowColor) inputShadowColor.value = '#000000';
+        if (hexShadowColor) hexShadowColor.textContent = '#000000';
+        if (rangeShadowBlur) rangeShadowBlur.value = 20;
+        if (valShadowBlur) valShadowBlur.textContent = '20px';
+        if (rangeShadowOpacity) rangeShadowOpacity.value = 60;
+        if (valShadowOpacity) valShadowOpacity.textContent = '60%';
+        if (rangeShadowOffsetX) rangeShadowOffsetX.value = 10;
+        if (valShadowOffsetX) valShadowOffsetX.textContent = '+10px';
+        if (rangeShadowOffsetY) rangeShadowOffsetY.value = 15;
+        if (valShadowOffsetY) valShadowOffsetY.textContent = '+15px';
+        document.querySelectorAll('.swatch-shadow').forEach(b => {
+            b.classList.toggle('active', (b.dataset.color || '').toLowerCase() === '#000000');
+        });
+        document.querySelectorAll('.shadow-preset-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.preset === 'soft');
+        });
+
+        // Reset Free Cut State & UI
+        studioState.freecut = {
+            points: [],
+            isClosed: false,
+            mode: 'lasso',
+            isDrawing: false
+        };
+        if (freeCutToolbar) freeCutToolbar.style.display = 'none';
+        if (valFreeCutPoints) valFreeCutPoints.textContent = '0';
+        if (btnFreeCutModeLasso) btnFreeCutModeLasso.classList.add('active');
+        if (btnFreeCutModePolygon) btnFreeCutModePolygon.classList.remove('active');
+        if (studioCanvas) {
+            studioCanvas.classList.remove('is-freecutting');
+            studioCanvas.classList.remove('is-freecut-drawing');
+        }
+
+        // Reset Shape Stroke State & UI
+        studioState.shapeStroke = {
+            enabled: false,
+            color: '#ffffff',
+            width: 6,
+            style: 'solid'
+        };
+        if (btnShapeStroke) btnShapeStroke.classList.remove('active');
+        if (statusShapeStroke) statusShapeStroke.textContent = 'OFF';
+        if (shapeStrokeBody) shapeStrokeBody.style.display = 'none';
+        if (inputShapeStrokeColor) inputShapeStrokeColor.value = '#ffffff';
+        if (hexShapeStrokeColor) hexShapeStrokeColor.textContent = '#ffffff';
+        if (rangeShapeStrokeWidth) rangeShapeStrokeWidth.value = 6;
+        if (valShapeStrokeWidth) valShapeStrokeWidth.textContent = '6px';
+        document.querySelectorAll('.shape-stroke-style-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.style === 'solid');
+        });
+        document.querySelectorAll('.swatch-shape-stroke').forEach(b => {
+            b.classList.toggle('active', (b.dataset.color || '').toLowerCase() === '#ffffff');
+        });
+
+        // Reset Picture Opacity & Hue Sliders
+        if (rangePictureOpacity) rangePictureOpacity.value = 100;
+        if (valPictureOpacity) valPictureOpacity.textContent = '100%';
+        document.querySelectorAll('.pic-op-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.opacity === '100');
+        });
+        if (rangeHueRotate) rangeHueRotate.value = 0;
+        if (valHueRotate) valHueRotate.textContent = '0°';
+
         studioState.text.content = '';
         studioState.text.font = 'sans-serif';
         studioState.text.size = 36;
@@ -640,9 +1100,11 @@ document.addEventListener('DOMContentLoaded', () => {
         studioState.text.opacity = 100;
         studioState.text.bold = true;
         studioState.text.italic = false;
+        studioState.text.underline = false;
         studioState.text.outline = true;
         studioState.text.outlineColor = '#000000';
         studioState.text.outlineWidth = 4;
+        studioState.text.strokeStyle = 'solid';
         studioState.text.glow = false;
         studioState.text.glowColor = '#38bdf8';
         studioState.text.glowBlur = 14;
@@ -658,6 +1120,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (valContrast) valContrast.textContent = '0%';
         if (valSaturation) valSaturation.textContent = '0%';
         if (valVignette) valVignette.textContent = '0%';
+        if (inputVignetteColor) inputVignetteColor.value = '#000000';
+        if (hexVignetteColor) hexVignetteColor.textContent = '#000000';
+        document.querySelectorAll('.swatch-vignette').forEach(b => {
+            b.classList.toggle('active', (b.dataset.color || '').toLowerCase() === '#000000');
+        });
 
         const rangeEdgeBlur = document.getElementById('rangeEdgeBlur');
         const valEdgeBlur = document.getElementById('valEdgeBlur');
@@ -686,6 +1153,10 @@ document.addEventListener('DOMContentLoaded', () => {
         studioState.targetResolution = null;
         if (rangeCropZoom) rangeCropZoom.value = 100;
         if (valCropZoom) valCropZoom.textContent = '100%';
+        if (floatingZoomBadge) floatingZoomBadge.textContent = '100%';
+        document.querySelectorAll('.zoom-pill-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.zoom === '100');
+        });
         if (rangeCropPanX) rangeCropPanX.value = 0;
         if (valCropPanX) valCropPanX.textContent = '0%';
         if (rangeCropPanY) rangeCropPanY.value = 0;
@@ -729,6 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputTextColor) inputTextColor.value = '#ffffff';
         if (btnTextBold) btnTextBold.classList.add('active');
         if (btnTextItalic) btnTextItalic.classList.remove('active');
+        if (btnTextUnderline) btnTextUnderline.classList.remove('active');
 
         // Reset Outline UI
         if (btnTextOutline) btnTextOutline.classList.add('active');
@@ -737,6 +1209,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputOutlineColor) inputOutlineColor.value = '#000000';
         if (rangeOutlineWidth) rangeOutlineWidth.value = 4;
         if (valOutlineWidth) valOutlineWidth.textContent = '4px';
+        document.querySelectorAll('.text-stroke-style-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.style === 'solid');
+        });
 
         // Reset Glow UI
         if (btnTextGlow) btnTextGlow.classList.remove('active');
@@ -823,6 +1298,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!imageSrc) return;
 
         studioState.mode = mode;
+        studioState.cutoutType = (mode === 'result') ? activeCutoutMode : 'original';
+
+        // Display or hide invert cutout button in Studio
+        if (btnStudioInvertCutout) {
+            btnStudioInvertCutout.style.display = (mode === 'result' || cachedBgUrl) ? 'inline-flex' : 'none';
+        }
 
         const img = new Image();
         img.crossOrigin = 'anonymous';
@@ -833,6 +1314,35 @@ document.addEventListener('DOMContentLoaded', () => {
             renderStudioCanvas();
         };
         img.src = imageSrc;
+    }
+
+    // Invert Cutout (Inside ⇄ Outside) inside Image Studio
+    if (btnStudioInvertCutout) {
+        btnStudioInvertCutout.addEventListener('click', async () => {
+            if (!studioState.sourceImg) return;
+
+            let nextMode = (studioState.cutoutType === 'inside') ? 'bg' : 'inside';
+            let nextSrc = (nextMode === 'bg') ? cachedBgUrl : cachedInsideDataUrl;
+
+            if (!nextSrc && nextMode === 'inside' && selectedDataUrl && cachedBgUrl) {
+                nextSrc = await generateInsideCutoutDataUrl(selectedDataUrl, cachedBgUrl);
+            }
+
+            if (!nextSrc && activeResultId) {
+                nextSrc = `api/download.php?id=${encodeURIComponent(activeResultId)}&mode=${nextMode}&preview=1`;
+            }
+
+            if (nextSrc) {
+                const newImg = new Image();
+                newImg.crossOrigin = 'anonymous';
+                newImg.onload = () => {
+                    studioState.sourceImg = newImg;
+                    studioState.cutoutType = nextMode;
+                    renderStudioCanvas();
+                };
+                newImg.src = nextSrc;
+            }
+        });
     }
 
     /**
@@ -874,11 +1384,48 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'contrast':
                 baseFilters += ' contrast(145%) brightness(105%)';
                 break;
+            case 'cyberpunk':
+                baseFilters += ' saturate(220%) contrast(130%) hue-rotate(190deg)';
+                break;
+            case 'noir':
+                baseFilters += ' grayscale(100%) contrast(180%) brightness(90%)';
+                break;
+            case 'golden':
+                baseFilters += ' sepia(40%) saturate(180%) hue-rotate(-20deg) brightness(105%)';
+                break;
+            case 'cinema':
+                baseFilters += ' contrast(130%) saturate(140%) hue-rotate(-15deg)';
+                break;
+            case 'pastel':
+                baseFilters += ' brightness(112%) saturate(85%) contrast(92%)';
+                break;
+            case 'retro':
+                baseFilters += ' sepia(25%) contrast(115%) saturate(120%) brightness(105%)';
+                break;
+            case 'emerald':
+                baseFilters += ' hue-rotate(65deg) saturate(130%) contrast(110%)';
+                break;
+            case 'lilac':
+                baseFilters += ' hue-rotate(240deg) saturate(135%) contrast(105%)';
+                break;
+            case 'invert':
+                baseFilters += ' invert(100%)';
+                break;
+            case 'popart':
+                baseFilters += ' contrast(160%) saturate(200%) hue-rotate(90deg)';
+                break;
+            case 'nordic':
+                baseFilters += ' saturate(60%) hue-rotate(180deg) brightness(105%)';
+                break;
             case 'vignette':
                 baseFilters += ' contrast(115%)';
                 break;
             default:
                 break;
+        }
+
+        if (studioState.hueRotate && studioState.hueRotate !== 0) {
+            baseFilters += ` hue-rotate(${studioState.hueRotate}deg)`;
         }
 
         return baseFilters;
@@ -887,12 +1434,14 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Render the transformed, cropped, shaped, and filtered image onto the canvas
      */
-    function renderStudioCanvas() {
+    function renderStudioCanvas(options = {}) {
         if (!studioState.sourceImg || !studioCanvas) return;
 
         const img = studioState.sourceImg;
         const ctx = studioCanvas.getContext('2d');
         if (!ctx) return;
+
+        const activeTabContent = document.querySelector('.studio-tab-content.active');
 
         // Base image dimensions
         const origW = img.naturalWidth || img.width;
@@ -941,8 +1490,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const croppedW = Math.max(30, ratioW - mLeft - mRight);
         const croppedH = Math.max(30, ratioH - mTop - mBottom);
 
-        // Photo Zoom multiplier (1.0 to 3.0)
-        const zoom = Math.max(1.0, Math.min(3.0, (studioState.cropZoom || 100) / 100));
+        // Photo Zoom multiplier (0.1 to 3.0, supports zoom out / shrink)
+        const zoom = Math.max(0.1, Math.min(3.0, (studioState.cropZoom || 100) / 100));
         const drawW = Math.round((isSideways ? origH : origW) * zoom);
         const drawH = Math.round((isSideways ? origW : origH) * zoom);
 
@@ -1005,7 +1554,85 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Step 1: Render intermediate unscaled cropped image to an offscreen canvas
+        // Step 1: Render intermediate unscaled cropped image to content canvas
+        const contentCanvas = document.createElement('canvas');
+        contentCanvas.width = croppedW;
+        contentCanvas.height = croppedH;
+        const contentCtx = contentCanvas.getContext('2d');
+        if (!contentCtx) return;
+
+        contentCtx.clearRect(0, 0, croppedW, croppedH);
+
+        // Clip to Shape Mask if selected
+        if (studioState.cropShape !== 'rect') {
+            createShapePath(contentCtx, studioState.cropShape, 0, 0, croppedW, croppedH);
+            contentCtx.clip();
+        }
+
+        // Apply Color Filters, Transparency & Smoothing
+        contentCtx.filter = getFilterString();
+        contentCtx.globalAlpha = Math.max(0.05, Math.min(1.0, (studioState.pictureOpacity ?? 100) / 100));
+        contentCtx.imageSmoothingEnabled = true;
+        contentCtx.imageSmoothingQuality = 'high';
+
+        // Draw Transformed Image with Center Alignment + User Framing Pan
+        contentCtx.save();
+        contentCtx.translate(
+            croppedW / 2 + (mRight - mLeft) / 2 + panPixelX,
+            croppedH / 2 + (mBottom - mTop) / 2 + panPixelY
+        );
+        contentCtx.rotate((studioState.rotation * Math.PI) / 180);
+
+        const scaleX = studioState.flipH ? -1 : 1;
+        const scaleY = studioState.flipV ? -1 : 1;
+        contentCtx.scale(scaleX, scaleY);
+
+        if (studioState.extrudeSquare) {
+            // Extrude entire picture into square dimensions (zoom applied)
+            const baseW = isSideways ? ratioH : ratioW;
+            const baseH = isSideways ? ratioW : ratioH;
+            const drawW = Math.round(baseW * zoom);
+            const drawH = Math.round(baseH * zoom);
+            contentCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+        } else {
+            // Draw image with zoom scaling applied
+            const unzoomedW = Math.round(origW * zoom);
+            const unzoomedH = Math.round(origH * zoom);
+            contentCtx.drawImage(img, -unzoomedW / 2, -unzoomedH / 2, unzoomedW, unzoomedH);
+        }
+        contentCtx.restore();
+
+        // Step 1.2: Draw Cutout & Shape Border Stroke if enabled
+        if (studioState.shapeStroke && studioState.shapeStroke.enabled) {
+            contentCtx.save();
+            contentCtx.strokeStyle = studioState.shapeStroke.color || '#ffffff';
+            const strokeW = Math.max(1, Math.round((studioState.shapeStroke.width || 6) * (croppedW / 600)));
+            contentCtx.lineWidth = strokeW;
+            contentCtx.lineJoin = 'round';
+            contentCtx.lineCap = 'round';
+
+            const sStyle = studioState.shapeStroke.style || 'solid';
+            if (sStyle === 'dashed') {
+                contentCtx.setLineDash([strokeW * 2.5, strokeW * 1.5]);
+            } else if (sStyle === 'dotted') {
+                contentCtx.setLineDash([1, strokeW * 1.8]);
+            } else {
+                contentCtx.setLineDash([]);
+            }
+
+            createShapePath(contentCtx, studioState.cropShape, 0, 0, croppedW, croppedH);
+            contentCtx.stroke();
+
+            if (sStyle === 'double') {
+                contentCtx.lineWidth = Math.max(1, Math.round(strokeW * 0.4));
+                const offset = strokeW * 1.4;
+                createShapePath(contentCtx, studioState.cropShape, offset, offset, Math.max(1, croppedW - offset * 2), Math.max(1, croppedH - offset * 2));
+                contentCtx.stroke();
+            }
+            contentCtx.restore();
+        }
+
+        // Step 1.3: Render to offCanvas with Drop Shadow if active
         const offCanvas = document.createElement('canvas');
         offCanvas.width = croppedW;
         offCanvas.height = croppedH;
@@ -1014,48 +1641,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
         offCtx.clearRect(0, 0, croppedW, croppedH);
 
-        // Clip to Shape Mask if selected
-        if (studioState.cropShape !== 'rect') {
-            createShapePath(offCtx, studioState.cropShape, 0, 0, croppedW, croppedH);
-            offCtx.clip();
-        }
-
-        // Apply Color Filters & Smoothing
-        offCtx.filter = getFilterString();
-        offCtx.imageSmoothingEnabled = true;
-        offCtx.imageSmoothingQuality = 'high';
-
-        // Draw Transformed Image with Center Alignment + User Framing Pan
-        offCtx.save();
-        offCtx.translate(
-            croppedW / 2 + (mRight - mLeft) / 2 + panPixelX,
-            croppedH / 2 + (mBottom - mTop) / 2 + panPixelY
-        );
-        offCtx.rotate((studioState.rotation * Math.PI) / 180);
-
-        const scaleX = studioState.flipH ? -1 : 1;
-        const scaleY = studioState.flipV ? -1 : 1;
-        offCtx.scale(scaleX, scaleY);
-
-        if (studioState.extrudeSquare) {
-            // Extrude entire picture into square dimensions (no clipping of content)
-            const drawW = isSideways ? ratioH : ratioW;
-            const drawH = isSideways ? ratioW : ratioH;
-            offCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+        if (studioState.shadow && studioState.shadow.enabled) {
+            offCtx.save();
+            const sColor = hexToRgb(studioState.shadow.color || '#000000');
+            const sAlpha = Math.max(0.05, Math.min(1.0, (studioState.shadow.opacity || 60) / 100));
+            offCtx.shadowColor = `rgba(${sColor.r}, ${sColor.g}, ${sColor.b}, ${sAlpha})`;
+            const scaleF = croppedW / 600;
+            offCtx.shadowBlur = Math.max(0, Math.round(studioState.shadow.blur * scaleF));
+            offCtx.shadowOffsetX = Math.round(studioState.shadow.offsetX * scaleF);
+            offCtx.shadowOffsetY = Math.round(studioState.shadow.offsetY * scaleF);
+            offCtx.drawImage(contentCanvas, 0, 0);
+            offCtx.restore();
         } else {
-            // Draw image with zoom scaling applied
-            const unzoomedW = Math.round(origW * zoom);
-            const unzoomedH = Math.round(origH * zoom);
-            offCtx.drawImage(img, -unzoomedW / 2, -unzoomedH / 2, unzoomedW, unzoomedH);
+            offCtx.drawImage(contentCanvas, 0, 0);
         }
-        offCtx.restore();
+
+        // Step 1.4: Live Free Cut Path Guide & Control Points (shown when Free Cut tab is active)
+        if (activeTabContent && activeTabContent.id === 'tabContentChopFree' && studioState.cropShape === 'freecut' && studioState.freecut.points.length > 0) {
+            offCtx.save();
+            const pts = studioState.freecut.points;
+            offCtx.strokeStyle = '#38bdf8';
+            offCtx.lineWidth = Math.max(2, Math.round(croppedW / 300));
+            offCtx.setLineDash([6, 4]);
+            offCtx.beginPath();
+            offCtx.moveTo(pts[0].x * croppedW, pts[0].y * croppedH);
+            for (let i = 1; i < pts.length; i++) {
+                offCtx.lineTo(pts[i].x * croppedW, pts[i].y * croppedH);
+            }
+            if (studioState.freecut.isClosed) {
+                offCtx.closePath();
+            }
+            offCtx.stroke();
+
+            // Point dots
+            offCtx.setLineDash([]);
+            const dotR = Math.max(3.5, Math.round(croppedW / 180));
+            for (let i = 0; i < pts.length; i++) {
+                offCtx.beginPath();
+                offCtx.arc(pts[i].x * croppedW, pts[i].y * croppedH, i === 0 ? dotR * 1.4 : dotR, 0, Math.PI * 2);
+                offCtx.fillStyle = i === 0 ? '#ec4899' : '#38bdf8';
+                offCtx.fill();
+                offCtx.strokeStyle = '#ffffff';
+                offCtx.lineWidth = 1.5;
+                offCtx.stroke();
+            }
+            offCtx.restore();
+        }
 
         // Step 1.5: Draw Edge Blurring if active
         if (studioState.edgeBlur > 0) {
             if (studioState.edgeBlurMode === 'radial') {
-                // Perimeter Lens Blur: leaves center sharp, blurs outer edges & corners
-                const maxBlurPx = Math.max(6, Math.round(Math.min(croppedW, croppedH) * 0.08));
-                const blurPx = Math.max(1, Math.round((studioState.edgeBlur / 100) * maxBlurPx));
+                // Perimeter Lens Blur: leaves center sharp, blurs outer edges & corners with authentic camera bokeh
+                const maxBlurPx = Math.max(16, Math.round(Math.min(croppedW, croppedH) * 0.18));
+                const blurPx = Math.max(2, Math.round((studioState.edgeBlur / 100) * maxBlurPx));
 
                 const blurCanvas = document.createElement('canvas');
                 blurCanvas.width = croppedW;
@@ -1073,11 +1711,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (maskCtx) {
                         const cx = croppedW / 2;
                         const cy = croppedH / 2;
-                        const radius = Math.max(croppedW, croppedH) * 0.72;
-                        const innerR = radius * Math.max(0.12, 0.45 - (studioState.edgeBlur / 250));
-                        const grad = maskCtx.createRadialGradient(cx, cy, innerR, cx, cy, radius);
+                        const cornerDist = Math.hypot(cx, cy);
+                        const minHalf = Math.min(cx, cy);
+                        // Focal center circle stays crisp, smoothly transitioning outward
+                        const innerR = minHalf * Math.max(0.12, 0.50 - (studioState.edgeBlur / 100) * 0.32);
+                        const outerR = minHalf + (cornerDist - minHalf) * 0.60;
+                        const grad = maskCtx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
                         grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-                        grad.addColorStop(0.45, 'rgba(0, 0, 0, 0.25)');
+                        grad.addColorStop(0.3, 'rgba(0, 0, 0, 0.15)');
+                        grad.addColorStop(0.7, 'rgba(0, 0, 0, 0.85)');
                         grad.addColorStop(1, 'rgba(0, 0, 0, 1.0)');
 
                         maskCtx.fillStyle = grad;
@@ -1120,15 +1762,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 createShapePath(offCtx, studioState.cropShape, 0, 0, croppedW, croppedH);
                 offCtx.clip();
             }
-            const radius = Math.max(croppedW, croppedH) * 0.72;
-            const grad = offCtx.createRadialGradient(
-                croppedW / 2, croppedH / 2, radius * 0.35,
-                croppedW / 2, croppedH / 2, radius
-            );
-            const alpha = (studioState.vignette / 100) * 0.88;
-            grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            grad.addColorStop(0.7, `rgba(0, 0, 0, ${alpha * 0.4})`);
-            grad.addColorStop(1, `rgba(0, 0, 0, ${alpha})`);
+            const cx = croppedW / 2;
+            const cy = croppedH / 2;
+            const cornerDist = Math.hypot(cx, cy);
+            const minHalf = Math.min(cx, cy);
+            const radius = minHalf + (cornerDist - minHalf) * 0.85;
+            const innerR = radius * Math.max(0.12, 0.45 - (studioState.vignette / 300));
+            const grad = offCtx.createRadialGradient(cx, cy, innerR, cx, cy, radius);
+
+            const vColor = hexToRgb(studioState.vignetteColor || '#000000');
+            const rgbStr = `${vColor.r}, ${vColor.g}, ${vColor.b}`;
+            const alpha = Math.min(1.0, (studioState.vignette / 100) * 0.95);
+            grad.addColorStop(0, `rgba(${rgbStr}, 0)`);
+            grad.addColorStop(0.5, `rgba(${rgbStr}, ${(alpha * 0.35).toFixed(3)})`);
+            grad.addColorStop(0.85, `rgba(${rgbStr}, ${(alpha * 0.78).toFixed(3)})`);
+            grad.addColorStop(1, `rgba(${rgbStr}, ${alpha.toFixed(3)})`);
 
             offCtx.fillStyle = grad;
             offCtx.fillRect(0, 0, croppedW, croppedH);
@@ -1164,7 +1812,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 offCtx.restore();
             }
 
-            // 2. Draw Outline if active (crisp rounded outer stroke)
+            // 2. Draw Outline if active (crisp outer stroke with stroke style)
             if (studioState.text.outline) {
                 offCtx.save();
                 offCtx.shadowColor = 'transparent';
@@ -1173,13 +1821,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 offCtx.lineWidth = strokeW;
                 offCtx.lineJoin = 'round';
                 offCtx.miterLimit = 2;
-                offCtx.strokeText(studioState.text.content, textX, textY);
+
+                const tStyle = studioState.text.strokeStyle || 'solid';
+                if (tStyle === 'dashed') {
+                    offCtx.setLineDash([strokeW * 2.2, strokeW * 1.5]);
+                } else if (tStyle === 'dotted') {
+                    offCtx.setLineDash([1, strokeW * 1.8]);
+                    offCtx.lineCap = 'round';
+                } else {
+                    offCtx.setLineDash([]);
+                }
+
+                if (tStyle === 'double') {
+                    offCtx.lineWidth = strokeW * 1.6;
+                    offCtx.strokeText(studioState.text.content, textX, textY);
+                    offCtx.lineWidth = Math.max(1, strokeW * 0.5);
+                    offCtx.strokeStyle = '#ffffff';
+                    offCtx.strokeText(studioState.text.content, textX, textY);
+                } else {
+                    offCtx.strokeText(studioState.text.content, textX, textY);
+                }
                 offCtx.restore();
             }
 
-            // 3. Fill Text with user's chosen word color on top
+            // 3. Fill Text with user's chosen word color
             offCtx.fillStyle = studioState.text.color;
             offCtx.fillText(studioState.text.content, textX, textY);
+
+            // 4. Draw Underline if active
+            if (studioState.text.underline) {
+                offCtx.save();
+                const metrics = offCtx.measureText(studioState.text.content);
+                const textW = metrics.width;
+                const underlineY = textY + fontSize * 0.52;
+                const underlineThickness = Math.max(2, Math.round(fontSize * 0.08));
+
+                offCtx.strokeStyle = studioState.text.color;
+                offCtx.lineWidth = underlineThickness;
+                offCtx.lineCap = 'round';
+
+                const tStyle = studioState.text.strokeStyle || 'solid';
+                if (tStyle === 'dashed') {
+                    offCtx.setLineDash([underlineThickness * 2.5, underlineThickness * 1.5]);
+                } else if (tStyle === 'dotted') {
+                    offCtx.setLineDash([1, underlineThickness * 1.8]);
+                } else {
+                    offCtx.setLineDash([]);
+                }
+
+                offCtx.beginPath();
+                offCtx.moveTo(textX - textW / 2, underlineY);
+                offCtx.lineTo(textX + textW / 2, underlineY);
+                offCtx.stroke();
+                offCtx.restore();
+            }
+
             offCtx.restore();
         }
 
@@ -1204,14 +1900,160 @@ document.addEventListener('DOMContentLoaded', () => {
             offCtx.restore();
         }
 
-        // Step 4: Transfer to Main Studio Canvas (scaled if resized)
-        studioCanvas.width = finalW;
-        studioCanvas.height = finalH;
+        // Step 4: Transfer to Main Studio Canvas (Interactive Free Chop vs Final Cropped)
+        const isExport = !!(options && options.exportMode);
+        const isChopFreeTab = activeTabContent && activeTabContent.id === 'tabContentChopFree';
+        const isFreeChopView = !isExport && isChopFreeTab && studioState.cropShape !== 'freecut';
 
-        ctx.clearRect(0, 0, finalW, finalH);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(offCanvas, 0, 0, finalW, finalH);
+        if (isFreeChopView) {
+            studioCanvas.width = ratioW;
+            studioCanvas.height = ratioH;
+
+            ctx.clearRect(0, 0, ratioW, ratioH);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // 1. Draw full oriented photo in the background (dimmed)
+            ctx.save();
+            ctx.translate(ratioW / 2 + panPixelX, ratioH / 2 + panPixelY);
+            ctx.rotate((studioState.rotation * Math.PI) / 180);
+            ctx.scale(studioState.flipH ? -1 : 1, studioState.flipV ? -1 : 1);
+            if (studioState.extrudeSquare) {
+                const baseW = isSideways ? ratioH : ratioW;
+                const baseH = isSideways ? ratioW : ratioH;
+                const drawW = Math.round(baseW * zoom);
+                const drawH = Math.round(baseH * zoom);
+                ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+            } else {
+                const unzoomedW = Math.round(origW * zoom);
+                const unzoomedH = Math.round(origH * zoom);
+                ctx.drawImage(img, -unzoomedW / 2, -unzoomedH / 2, unzoomedW, unzoomedH);
+            }
+            ctx.restore();
+
+            // 2. Dim outer margins outside the crop box
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+            ctx.fillRect(0, 0, ratioW, ratioH);
+
+            // 3. Clear crop box area and draw the bright cropped offCanvas inside it
+            ctx.clearRect(mLeft, mTop, croppedW, croppedH);
+            ctx.drawImage(offCanvas, mLeft, mTop, croppedW, croppedH);
+
+            // 4. Draw 3x3 Rule-of-Thirds Grid inside crop box
+            const strokeW = Math.max(2, Math.round(ratioW / 450));
+            ctx.save();
+            ctx.setLineDash([strokeW * 2, strokeW * 2]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(mLeft + croppedW / 3, mTop); ctx.lineTo(mLeft + croppedW / 3, mTop + croppedH);
+            ctx.moveTo(mLeft + (2 * croppedW) / 3, mTop); ctx.lineTo(mLeft + (2 * croppedW) / 3, mTop + croppedH);
+            ctx.moveTo(mLeft, mTop + croppedH / 3); ctx.lineTo(mLeft + croppedW, mTop + croppedH / 3);
+            ctx.moveTo(mLeft, mTop + (2 * croppedH) / 3); ctx.lineTo(mLeft + croppedW, mTop + (2 * croppedH) / 3);
+            ctx.stroke();
+            ctx.restore();
+
+            // 5. Draw glowing cyan border around crop box
+            ctx.save();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = strokeW;
+            ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
+            ctx.shadowBlur = 8;
+            ctx.strokeRect(mLeft, mTop, croppedW, croppedH);
+            ctx.restore();
+
+            // 6. Draw 8 Interactive Handles
+            const { handles } = getFreeChopHandles(ratioW, ratioH, studioState.cropMargins);
+            const cornerSize = Math.max(12, Math.round(ratioW / 65));
+            const edgeLen = Math.max(16, Math.round(ratioW / 45));
+            const edgeThick = Math.max(6, Math.round(ratioW / 140));
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 6;
+
+            // 4 Corner handles (circles)
+            ['tl', 'tr', 'br', 'bl'].forEach(key => {
+                const h = handles[key];
+                ctx.beginPath();
+                ctx.arc(h.x, h.y, cornerSize * 0.7, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.strokeStyle = '#0284c7';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+            });
+
+            // 4 Edge midpoint pill handles
+            ['t', 'b'].forEach(key => {
+                const h = handles[key];
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(h.x - edgeLen / 2, h.y - edgeThick / 2, edgeLen, edgeThick, edgeThick / 2);
+                } else {
+                    ctx.rect(h.x - edgeLen / 2, h.y - edgeThick / 2, edgeLen, edgeThick);
+                }
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.strokeStyle = '#0284c7';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            ['l', 'r'].forEach(key => {
+                const h = handles[key];
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(h.x - edgeThick / 2, h.y - edgeLen / 2, edgeThick, edgeLen, edgeThick / 2);
+                } else {
+                    ctx.rect(h.x - edgeThick / 2, h.y - edgeLen / 2, edgeThick, edgeLen);
+                }
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.strokeStyle = '#0284c7';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+            ctx.restore();
+
+            // 7. Draw Dimension Badge (Pill at top center)
+            ctx.save();
+            const badgeText = `${croppedW} × ${croppedH} px`;
+            ctx.font = `600 ${Math.max(11, Math.round(ratioW / 75))}px 'Inter', sans-serif`;
+            const textMetrics = ctx.measureText(badgeText);
+            const badgeW = textMetrics.width + 16;
+            const badgeH = Math.max(18, Math.round(ratioW / 55));
+            const badgeX = mLeft + croppedW / 2 - badgeW / 2;
+            const badgeY = mTop > badgeH + 8 ? mTop - badgeH - 6 : mTop + 8;
+
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.5;
+            if (ctx.roundRect) {
+                ctx.beginPath();
+                ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+                ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+            }
+            ctx.fillStyle = '#f8fafc';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2);
+            ctx.restore();
+
+        } else {
+            // Standard cropped rendering (for other tabs and final export)
+            studioCanvas.width = finalW;
+            studioCanvas.height = finalH;
+
+            ctx.clearRect(0, 0, finalW, finalH);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(offCanvas, 0, 0, finalW, finalH);
+        }
     }
 
     // ==========================================
@@ -1274,11 +2116,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Update canvas cursor for text drag or overlay drag if active
+        const isFreeCut = targetTab === 'chop_free' && studioState.cropShape === 'freecut';
+        if (freeCutToolbar) {
+            freeCutToolbar.style.display = isFreeCut ? 'block' : 'none';
+        }
+
+        // Update canvas cursor for text drag, overlay drag, or free cut if active
         if (studioCanvas) {
             studioCanvas.classList.toggle('dragging-text', targetTab === 'text');
             studioCanvas.classList.toggle('dragging-overlay', targetTab === 'overlay');
+            studioCanvas.classList.toggle('is-freecutting', isFreeCut);
         }
+
+        renderStudioCanvas();
     }
 
     function switchStudioCategory(category) {
@@ -1382,9 +2232,116 @@ document.addEventListener('DOMContentLoaded', () => {
             shapeBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             studioState.cropShape = btn.dataset.shape || 'rect';
+            const isFreeCut = studioState.cropShape === 'freecut';
+            if (freeCutToolbar) freeCutToolbar.style.display = isFreeCut ? 'block' : 'none';
+            if (studioCanvas) studioCanvas.classList.toggle('is-freecutting', isFreeCut);
             renderStudioCanvas();
         });
     });
+
+    // Free Cut Controls (Lasso vs Polygon, Finish, Undo, Reset)
+    freeCutModeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            freeCutModeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const mode = btn.dataset.mode || 'lasso';
+            studioState.freecut.mode = mode;
+            if (freeCutHint && btn.dataset.hint) {
+                freeCutHint.textContent = btn.dataset.hint;
+            }
+        });
+    });
+
+    if (btnFreeCutFinish) {
+        btnFreeCutFinish.addEventListener('click', () => {
+            if (studioState.freecut.points.length >= 3) {
+                studioState.freecut.isClosed = true;
+                renderStudioCanvas();
+            }
+        });
+    }
+
+    if (btnFreeCutUndo) {
+        btnFreeCutUndo.addEventListener('click', () => {
+            if (studioState.freecut.points.length > 0) {
+                studioState.freecut.points.pop();
+                if (studioState.freecut.points.length < 3) {
+                    studioState.freecut.isClosed = false;
+                }
+                if (valFreeCutPoints) valFreeCutPoints.textContent = studioState.freecut.points.length;
+                renderStudioCanvas();
+            }
+        });
+    }
+
+    if (btnFreeCutReset) {
+        btnFreeCutReset.addEventListener('click', () => {
+            studioState.freecut.points = [];
+            studioState.freecut.isClosed = false;
+            if (valFreeCutPoints) valFreeCutPoints.textContent = '0';
+            renderStudioCanvas();
+        });
+    }
+
+    // Cutout / Shape Border Stroke Controls
+    if (btnShapeStroke) {
+        btnShapeStroke.addEventListener('click', () => {
+            studioState.shapeStroke.enabled = !studioState.shapeStroke.enabled;
+            btnShapeStroke.classList.toggle('active', studioState.shapeStroke.enabled);
+            if (statusShapeStroke) statusShapeStroke.textContent = studioState.shapeStroke.enabled ? 'ON' : 'OFF';
+            if (shapeStrokeBody) shapeStrokeBody.style.display = studioState.shapeStroke.enabled ? 'flex' : 'none';
+            renderStudioCanvas();
+        });
+    }
+
+    shapeStrokeStyleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            shapeStrokeStyleBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            studioState.shapeStroke.style = btn.dataset.style || 'solid';
+            if (!studioState.shapeStroke.enabled) {
+                studioState.shapeStroke.enabled = true;
+                if (btnShapeStroke) btnShapeStroke.classList.add('active');
+                if (statusShapeStroke) statusShapeStroke.textContent = 'ON';
+                if (shapeStrokeBody) shapeStrokeBody.style.display = 'flex';
+            }
+            renderStudioCanvas();
+        });
+    });
+
+    if (inputShapeStrokeColor) {
+        inputShapeStrokeColor.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            studioState.shapeStroke.color = val;
+            if (hexShapeStrokeColor) hexShapeStrokeColor.textContent = val;
+            document.querySelectorAll('.swatch-shape-stroke').forEach(b => {
+                b.classList.toggle('active', (b.dataset.color || '').toLowerCase() === val);
+            });
+            renderStudioCanvas();
+        });
+    }
+
+    const swatchShapeStrokeBtns = document.querySelectorAll('.swatch-shape-stroke');
+    swatchShapeStrokeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            swatchShapeStrokeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const color = (btn.dataset.color || '#ffffff').toLowerCase();
+            studioState.shapeStroke.color = color;
+            if (inputShapeStrokeColor) inputShapeStrokeColor.value = color;
+            if (hexShapeStrokeColor) hexShapeStrokeColor.textContent = color;
+            renderStudioCanvas();
+        });
+    });
+
+    if (rangeShapeStrokeWidth && valShapeStrokeWidth) {
+        rangeShapeStrokeWidth.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 6;
+            studioState.shapeStroke.width = val;
+            valShapeStrokeWidth.textContent = `${val}px`;
+            renderStudioCanvas();
+        });
+    }
 
     // 3. Freeform Crop Margin Sliders (Chops edges off without extrusion)
     function attachCropMarginListener(slider, labelEl, key) {
@@ -1407,6 +2364,60 @@ document.addEventListener('DOMContentLoaded', () => {
     attachCropMarginListener(rangeCropBottom, valCropBottom, 'bottom');
     attachCropMarginListener(rangeCropLeft, valCropLeft, 'left');
     attachCropMarginListener(rangeCropRight, valCropRight, 'right');
+
+    function syncCropMarginUI() {
+        if (rangeCropTop) rangeCropTop.value = studioState.cropMargins.top;
+        if (valCropTop) valCropTop.textContent = `${studioState.cropMargins.top}%`;
+        if (rangeCropBottom) rangeCropBottom.value = studioState.cropMargins.bottom;
+        if (valCropBottom) valCropBottom.textContent = `${studioState.cropMargins.bottom}%`;
+        if (rangeCropLeft) rangeCropLeft.value = studioState.cropMargins.left;
+        if (valCropLeft) valCropLeft.textContent = `${studioState.cropMargins.left}%`;
+        if (rangeCropRight) rangeCropRight.value = studioState.cropMargins.right;
+        if (valCropRight) valCropRight.textContent = `${studioState.cropMargins.right}%`;
+    }
+
+    if (btnFreeChopReset) {
+        btnFreeChopReset.addEventListener('click', () => {
+            studioState.cropMargins = { top: 0, bottom: 0, left: 0, right: 0 };
+            syncCropMarginUI();
+            renderStudioCanvas();
+        });
+    }
+
+    if (btnFreeChopFit) {
+        btnFreeChopFit.addEventListener('click', () => {
+            studioState.cropMargins = { top: 0, bottom: 0, left: 0, right: 0 };
+            syncCropMarginUI();
+            renderStudioCanvas();
+        });
+    }
+
+    if (btnFreeChopSquare) {
+        btnFreeChopSquare.addEventListener('click', () => {
+            if (!studioState.sourceImg) return;
+            const img = studioState.sourceImg;
+            const origW = img.naturalWidth || img.width;
+            const origH = img.naturalHeight || img.height;
+            const isSideways = studioState.rotation === 90 || studioState.rotation === 270;
+            const rotW = isSideways ? origH : origW;
+            const rotH = isSideways ? origW : origH;
+
+            const minDim = Math.min(rotW, rotH);
+            const diffW = rotW - minDim;
+            const diffH = rotH - minDim;
+
+            const pctX = Math.min(45, Math.round(((diffW / 2) / rotW) * 100));
+            const pctY = Math.min(45, Math.round(((diffH / 2) / rotH) * 100));
+
+            studioState.cropMargins.left = pctX;
+            studioState.cropMargins.right = pctX;
+            studioState.cropMargins.top = pctY;
+            studioState.cropMargins.bottom = pctY;
+
+            syncCropMarginUI();
+            renderStudioCanvas();
+        });
+    }
 
     // 4. Resize Handlers
     if (btnLockAspect) {
@@ -1504,15 +2515,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    function setCropZoom(val) {
+        const clamped = Math.max(10, Math.min(300, Math.round(val)));
+        studioState.cropZoom = clamped;
+        if (rangeCropZoom) rangeCropZoom.value = clamped;
+        if (valCropZoom) valCropZoom.textContent = `${clamped}%`;
+        if (floatingZoomBadge) floatingZoomBadge.textContent = `${clamped}%`;
+
+        document.querySelectorAll('.zoom-pill-btn').forEach(btn => {
+            const z = parseInt(btn.dataset.zoom, 10);
+            btn.classList.toggle('active', z === clamped);
+        });
+
+        renderStudioCanvas();
+    }
+
     // Photo Zoom Slider Listener
     if (rangeCropZoom) {
         rangeCropZoom.addEventListener('input', (e) => {
             const val = parseInt(e.target.value, 10) || 100;
-            studioState.cropZoom = val;
-            if (valCropZoom) valCropZoom.textContent = `${val}%`;
-            renderStudioCanvas();
+            setCropZoom(val);
         });
     }
+
+    // Zoom Step Controls (Sidebar buttons & Canvas Floating Toolbar)
+    function zoomOutStep() {
+        const current = studioState.cropZoom || 100;
+        const step = current <= 25 ? 5 : 10;
+        setCropZoom(current - step);
+    }
+
+    function zoomInStep() {
+        const current = studioState.cropZoom || 100;
+        const step = current < 25 ? 5 : 10;
+        setCropZoom(current + step);
+    }
+
+    if (btnZoomOut) btnZoomOut.addEventListener('click', zoomOutStep);
+    if (btnZoomIn) btnZoomIn.addEventListener('click', zoomInStep);
+    if (btnResetZoom) btnResetZoom.addEventListener('click', () => setCropZoom(100));
+
+    if (btnFloatingZoomOut) btnFloatingZoomOut.addEventListener('click', zoomOutStep);
+    if (btnFloatingZoomIn) btnFloatingZoomIn.addEventListener('click', zoomInStep);
+    if (btnFloatingZoomReset) btnFloatingZoomReset.addEventListener('click', () => setCropZoom(100));
+
+    // Quick Zoom Presets
+    document.querySelectorAll('.zoom-pill-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const z = parseInt(btn.dataset.zoom, 10);
+            if (!isNaN(z)) setCropZoom(z);
+        });
+    });
 
     // Photo Framing / Pan Controls
     if (rangeCropPanX) {
@@ -1544,11 +2597,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetPan() {
-        studioState.cropZoom = 100;
+        setCropZoom(100);
         studioState.cropPan.x = 0;
         studioState.cropPan.y = 0;
-        if (rangeCropZoom) rangeCropZoom.value = 100;
-        if (valCropZoom) valCropZoom.textContent = '100%';
         if (rangeCropPanX) rangeCropPanX.value = 0;
         if (valCropPanX) valCropPanX.textContent = '0%';
         if (rangeCropPanY) rangeCropPanY.value = 0;
@@ -1703,6 +2754,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Vignette Edge Color Picker & Swatches
+    if (inputVignetteColor) {
+        inputVignetteColor.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            studioState.vignetteColor = val;
+            if (hexVignetteColor) hexVignetteColor.textContent = val;
+            document.querySelectorAll('.swatch-vignette').forEach(b => {
+                b.classList.toggle('active', (b.dataset.color || '').toLowerCase() === val);
+            });
+            // If vignette slider is at 0, automatically turn it on to 45% so user sees the color!
+            if (studioState.vignette === 0) {
+                studioState.vignette = 45;
+                if (rangeVignette) rangeVignette.value = 45;
+                if (valVignette) valVignette.textContent = '45%';
+                if (btnPresetVignette) btnPresetVignette.classList.add('active');
+            }
+            renderStudioCanvas();
+        });
+    }
+
+    const swatchVignetteBtns = document.querySelectorAll('.swatch-vignette');
+    swatchVignetteBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            swatchVignetteBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const color = (btn.dataset.color || '#000000').toLowerCase();
+            studioState.vignetteColor = color;
+            if (inputVignetteColor) inputVignetteColor.value = color;
+            if (hexVignetteColor) hexVignetteColor.textContent = color;
+            // If vignette slider is at 0, automatically turn it on to 45% so user sees the color!
+            if (studioState.vignette === 0) {
+                studioState.vignette = 45;
+                if (rangeVignette) rangeVignette.value = 45;
+                if (valVignette) valVignette.textContent = '45%';
+                if (btnPresetVignette) btnPresetVignette.classList.add('active');
+            }
+            renderStudioCanvas();
+        });
+    });
+
     if (rangeBrightness && valBrightness) {
         rangeBrightness.addEventListener('input', (e) => {
             studioState.brightness = e.target.value;
@@ -1723,6 +2814,155 @@ document.addEventListener('DOMContentLoaded', () => {
         rangeSaturation.addEventListener('input', (e) => {
             studioState.saturation = e.target.value;
             valSaturation.textContent = (e.target.value > 0 ? '+' : '') + e.target.value + '%';
+            renderStudioCanvas();
+        });
+    }
+
+    // Picture Opacity / Transparency Handlers
+    if (rangePictureOpacity && valPictureOpacity) {
+        rangePictureOpacity.addEventListener('input', (e) => {
+            const op = parseInt(e.target.value, 10) || 100;
+            studioState.pictureOpacity = op;
+            valPictureOpacity.textContent = `${op}%`;
+            picOpBtns.forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.opacity, 10) === op);
+            });
+            renderStudioCanvas();
+        });
+    }
+
+    picOpBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const op = parseInt(btn.dataset.opacity, 10) || 100;
+            studioState.pictureOpacity = op;
+            if (rangePictureOpacity) rangePictureOpacity.value = op;
+            if (valPictureOpacity) valPictureOpacity.textContent = `${op}%`;
+            picOpBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderStudioCanvas();
+        });
+    });
+
+    // Hue Rotation Slider
+    if (rangeHueRotate && valHueRotate) {
+        rangeHueRotate.addEventListener('input', (e) => {
+            const deg = parseInt(e.target.value, 10) || 0;
+            studioState.hueRotate = deg;
+            valHueRotate.textContent = `${deg > 0 ? '+' : ''}${deg}°`;
+            renderStudioCanvas();
+        });
+    }
+
+    // Cutout & Picture Drop Shadow Handlers
+    if (btnCutoutShadow) {
+        btnCutoutShadow.addEventListener('click', () => {
+            studioState.shadow.enabled = !studioState.shadow.enabled;
+            btnCutoutShadow.classList.toggle('active', studioState.shadow.enabled);
+            if (statusCutoutShadow) statusCutoutShadow.textContent = studioState.shadow.enabled ? 'ON' : 'OFF';
+            if (cutoutShadowBody) cutoutShadowBody.style.display = studioState.shadow.enabled ? 'flex' : 'none';
+            renderStudioCanvas();
+        });
+    }
+
+    const shadowPresets = {
+        soft: { blur: 20, opacity: 50, offsetX: 0, offsetY: 12 },
+        '3d': { blur: 28, opacity: 65, offsetX: 16, offsetY: 20 },
+        float: { blur: 36, opacity: 55, offsetX: 0, offsetY: 28 },
+        halo: { blur: 30, opacity: 70, offsetX: 0, offsetY: 0 },
+        ground: { blur: 14, opacity: 60, offsetX: 0, offsetY: 32 }
+    };
+
+    shadowPresetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            shadowPresetBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const key = btn.dataset.preset;
+            if (shadowPresets[key]) {
+                const p = shadowPresets[key];
+                studioState.shadow.blur = p.blur;
+                studioState.shadow.opacity = p.opacity;
+                studioState.shadow.offsetX = p.offsetX;
+                studioState.shadow.offsetY = p.offsetY;
+                if (rangeShadowBlur) rangeShadowBlur.value = p.blur;
+                if (valShadowBlur) valShadowBlur.textContent = `${p.blur}px`;
+                if (rangeShadowOpacity) rangeShadowOpacity.value = p.opacity;
+                if (valShadowOpacity) valShadowOpacity.textContent = `${p.opacity}%`;
+                if (rangeShadowOffsetX) rangeShadowOffsetX.value = p.offsetX;
+                if (valShadowOffsetX) valShadowOffsetX.textContent = `${p.offsetX > 0 ? '+' : ''}${p.offsetX}px`;
+                if (rangeShadowOffsetY) rangeShadowOffsetY.value = p.offsetY;
+                if (valShadowOffsetY) valShadowOffsetY.textContent = `${p.offsetY > 0 ? '+' : ''}${p.offsetY}px`;
+            }
+            if (!studioState.shadow.enabled) {
+                studioState.shadow.enabled = true;
+                if (btnCutoutShadow) btnCutoutShadow.classList.add('active');
+                if (statusCutoutShadow) statusCutoutShadow.textContent = 'ON';
+                if (cutoutShadowBody) cutoutShadowBody.style.display = 'flex';
+            }
+            renderStudioCanvas();
+        });
+    });
+
+    if (inputShadowColor) {
+        inputShadowColor.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            studioState.shadow.color = val;
+            if (hexShadowColor) hexShadowColor.textContent = val;
+            document.querySelectorAll('.swatch-shadow').forEach(b => {
+                b.classList.toggle('active', (b.dataset.color || '').toLowerCase() === val);
+            });
+            renderStudioCanvas();
+        });
+    }
+
+    const swatchShadowBtns = document.querySelectorAll('.swatch-shadow');
+    swatchShadowBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            swatchShadowBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const color = (btn.dataset.color || '#000000').toLowerCase();
+            studioState.shadow.color = color;
+            if (inputShadowColor) inputShadowColor.value = color;
+            if (hexShadowColor) hexShadowColor.textContent = color;
+            renderStudioCanvas();
+        });
+    });
+
+    if (rangeShadowBlur && valShadowBlur) {
+        rangeShadowBlur.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 0;
+            studioState.shadow.blur = val;
+            valShadowBlur.textContent = `${val}px`;
+            shadowPresetBtns.forEach(b => b.classList.toggle('active', b.dataset.preset === 'custom'));
+            renderStudioCanvas();
+        });
+    }
+
+    if (rangeShadowOpacity && valShadowOpacity) {
+        rangeShadowOpacity.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 60;
+            studioState.shadow.opacity = val;
+            valShadowOpacity.textContent = `${val}%`;
+            shadowPresetBtns.forEach(b => b.classList.toggle('active', b.dataset.preset === 'custom'));
+            renderStudioCanvas();
+        });
+    }
+
+    if (rangeShadowOffsetX && valShadowOffsetX) {
+        rangeShadowOffsetX.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 0;
+            studioState.shadow.offsetX = val;
+            valShadowOffsetX.textContent = `${val > 0 ? '+' : ''}${val}px`;
+            shadowPresetBtns.forEach(b => b.classList.toggle('active', b.dataset.preset === 'custom'));
+            renderStudioCanvas();
+        });
+    }
+
+    if (rangeShadowOffsetY && valShadowOffsetY) {
+        rangeShadowOffsetY.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10) || 0;
+            studioState.shadow.offsetY = val;
+            valShadowOffsetY.textContent = `${val > 0 ? '+' : ''}${val}px`;
+            shadowPresetBtns.forEach(b => b.classList.toggle('active', b.dataset.preset === 'custom'));
             renderStudioCanvas();
         });
     }
@@ -1845,6 +3085,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    textStrokeStyleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            textStrokeStyleBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            studioState.text.strokeStyle = btn.dataset.style || 'solid';
+            if (!studioState.text.outline) {
+                studioState.text.outline = true;
+                if (btnTextOutline) btnTextOutline.classList.add('active');
+                if (statusTextOutline) statusTextOutline.textContent = 'ON';
+                if (outlineBody) outlineBody.style.display = 'flex';
+            }
+            renderStudioCanvas();
+        });
+    });
+
     // Word Glow Controls
     if (btnTextGlow) {
         btnTextGlow.addEventListener('click', () => {
@@ -1889,7 +3144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Bold & Italic
+    // Bold, Italic & Underline
     if (btnTextBold) {
         btnTextBold.addEventListener('click', () => {
             studioState.text.bold = !studioState.text.bold;
@@ -1902,6 +3157,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btnTextItalic.addEventListener('click', () => {
             studioState.text.italic = !studioState.text.italic;
             btnTextItalic.classList.toggle('active', studioState.text.italic);
+            renderStudioCanvas();
+        });
+    }
+
+    if (btnTextUnderline) {
+        btnTextUnderline.addEventListener('click', () => {
+            studioState.text.underline = !studioState.text.underline;
+            btnTextUnderline.classList.toggle('active', studioState.text.underline);
             renderStudioCanvas();
         });
     }
@@ -2106,11 +3369,249 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Canvas Interactive Dragging (Text Dragging, Overlay Dragging, or Photo Framing Pan)
+    // Canvas Interactive Dragging (Text Dragging, Overlay Dragging, Free Cut, or Photo Framing Pan)
+    function getNormalizedCanvasPoint(e) {
+        if (!studioCanvas) return null;
+        const rect = studioCanvas.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const rx = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const ry = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+        return { x: rx, y: ry };
+    }
+
+    function handleFreeCutPointerDown(e) {
+        const pt = getNormalizedCanvasPoint(e);
+        if (!pt) return;
+
+        if (e.cancelable && e.type && e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
+
+        if (studioState.freecut.mode === 'polygon') {
+            const pts = studioState.freecut.points;
+            if (pts.length >= 3) {
+                const distToFirst = Math.hypot(pt.x - pts[0].x, pt.y - pts[0].y);
+                if (distToFirst < 0.05) {
+                    studioState.freecut.isClosed = true;
+                    if (valFreeCutPoints) valFreeCutPoints.textContent = pts.length;
+                    renderStudioCanvas();
+                    return;
+                }
+            }
+
+            if (studioState.freecut.isClosed) {
+                studioState.freecut.points = [pt];
+                studioState.freecut.isClosed = false;
+            } else {
+                pts.push(pt);
+            }
+            if (valFreeCutPoints) valFreeCutPoints.textContent = pts.length;
+            renderStudioCanvas();
+        } else {
+            // Lasso mode
+            studioState.freecut.isDrawing = true;
+            studioState.freecut.isClosed = false;
+            studioState.freecut.points = [pt];
+            if (studioCanvas) studioCanvas.classList.add('is-freecut-drawing');
+            if (valFreeCutPoints) valFreeCutPoints.textContent = '1';
+            renderStudioCanvas();
+        }
+    }
+
+    function handleFreeCutPointerMove(e) {
+        if (studioState.freecut.mode !== 'lasso' || !studioState.freecut.isDrawing) return;
+        const pt = getNormalizedCanvasPoint(e);
+        if (!pt) return;
+
+        if (e.cancelable && e.type && e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
+
+        const pts = studioState.freecut.points;
+        const lastPt = pts[pts.length - 1];
+        if (!lastPt || Math.hypot(pt.x - lastPt.x, pt.y - lastPt.y) > 0.006) {
+            pts.push(pt);
+            if (valFreeCutPoints) valFreeCutPoints.textContent = pts.length;
+            renderStudioCanvas();
+        }
+    }
+
+    function handleFreeCutPointerUp(e) {
+        if (studioState.freecut.mode === 'lasso' && studioState.freecut.isDrawing) {
+            studioState.freecut.isDrawing = false;
+            if (studioCanvas) studioCanvas.classList.remove('is-freecut-drawing');
+            if (studioState.freecut.points.length >= 3) {
+                studioState.freecut.isClosed = true;
+            }
+            if (valFreeCutPoints) valFreeCutPoints.textContent = studioState.freecut.points.length;
+            renderStudioCanvas();
+        }
+    }
+
+    function handleFreeChopPointerDown(e) {
+        if (!studioCanvas || !studioState.sourceImg) return;
+        const rect = studioCanvas.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const canvasX = (clientX - rect.left) * (studioCanvas.width / rect.width);
+        const canvasY = (clientY - rect.top) * (studioCanvas.height / rect.height);
+
+        const hit = hitTestFreeChop(canvasX, canvasY, studioCanvas.width, studioCanvas.height, studioState.cropMargins, studioCanvas.width / rect.width);
+
+        studioState.freeChop.draggingHandle = hit.type === 'handle' ? hit.handle : null;
+        studioState.freeChop.isMovingBox = hit.type === 'box';
+        studioState.freeChop.isDrawingBox = hit.type === 'outside';
+        studioState.freeChop.dragStart = { x: canvasX, y: canvasY };
+        studioState.freeChop.initialMargins = { ...studioState.cropMargins };
+
+        if (e.cancelable && e.type && e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
+    }
+
+    function handleFreeChopPointerMove(e) {
+        if (!studioCanvas || !studioState.sourceImg) return;
+        const rect = studioCanvas.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const canvasX = (clientX - rect.left) * (studioCanvas.width / rect.width);
+        const canvasY = (clientY - rect.top) * (studioCanvas.height / rect.height);
+
+        const cW = studioCanvas.width;
+        const cH = studioCanvas.height;
+
+        // 1. Dragging a specific handle
+        if (studioState.freeChop.draggingHandle) {
+            if (e.cancelable && e.type && e.type.startsWith('touch')) {
+                e.preventDefault();
+            }
+
+            const h = studioState.freeChop.draggingHandle;
+
+            // Left edge or corners
+            if (h === 'l' || h === 'tl' || h === 'bl') {
+                const maxLeft = 100 - studioState.cropMargins.right - 10;
+                const newLeft = Math.max(0, Math.min(Math.min(45, maxLeft), Math.round((canvasX / cW) * 100)));
+                studioState.cropMargins.left = newLeft;
+            }
+            // Right edge or corners
+            if (h === 'r' || h === 'tr' || h === 'br') {
+                const maxRight = 100 - studioState.cropMargins.left - 10;
+                const newRight = Math.max(0, Math.min(Math.min(45, maxRight), Math.round(((cW - canvasX) / cW) * 100)));
+                studioState.cropMargins.right = newRight;
+            }
+            // Top edge or corners
+            if (h === 't' || h === 'tl' || h === 'tr') {
+                const maxTop = 100 - studioState.cropMargins.bottom - 10;
+                const newTop = Math.max(0, Math.min(Math.min(45, maxTop), Math.round((canvasY / cH) * 100)));
+                studioState.cropMargins.top = newTop;
+            }
+            // Bottom edge or corners
+            if (h === 'b' || h === 'bl' || h === 'br') {
+                const maxBottom = 100 - studioState.cropMargins.top - 10;
+                const newBottom = Math.max(0, Math.min(Math.min(45, maxBottom), Math.round(((cH - canvasY) / cH) * 100)));
+                studioState.cropMargins.bottom = newBottom;
+            }
+
+            syncCropMarginUI();
+            renderStudioCanvas();
+            return;
+        }
+
+        // 2. Moving the whole crop box
+        if (studioState.freeChop.isMovingBox && studioState.freeChop.dragStart && studioState.freeChop.initialMargins) {
+            if (e.cancelable && e.type && e.type.startsWith('touch')) {
+                e.preventDefault();
+            }
+
+            const deltaX = canvasX - studioState.freeChop.dragStart.x;
+            const deltaY = canvasY - studioState.freeChop.dragStart.y;
+            const shiftPctX = Math.round((deltaX / cW) * 100);
+            const shiftPctY = Math.round((deltaY / cH) * 100);
+
+            const init = studioState.freeChop.initialMargins;
+            let newLeft = init.left + shiftPctX;
+            let newRight = init.right - shiftPctX;
+            let newTop = init.top + shiftPctY;
+            let newBottom = init.bottom - shiftPctY;
+
+            if (newLeft < 0) { newRight += newLeft; newLeft = 0; }
+            if (newRight < 0) { newLeft += newRight; newRight = 0; }
+            if (newTop < 0) { newBottom += newTop; newTop = 0; }
+            if (newBottom < 0) { newTop += newBottom; newBottom = 0; }
+
+            studioState.cropMargins.left = Math.max(0, Math.min(45, newLeft));
+            studioState.cropMargins.right = Math.max(0, Math.min(45, newRight));
+            studioState.cropMargins.top = Math.max(0, Math.min(45, newTop));
+            studioState.cropMargins.bottom = Math.max(0, Math.min(45, newBottom));
+
+            syncCropMarginUI();
+            renderStudioCanvas();
+            return;
+        }
+
+        // 3. Drawing new rectangle by dragging on canvas
+        if (studioState.freeChop.isDrawingBox && studioState.freeChop.dragStart) {
+            if (e.cancelable && e.type && e.type.startsWith('touch')) {
+                e.preventDefault();
+            }
+
+            const startX = studioState.freeChop.dragStart.x;
+            const startY = studioState.freeChop.dragStart.y;
+            const minX = Math.min(startX, canvasX);
+            const maxX = Math.max(startX, canvasX);
+            const minY = Math.min(startY, canvasY);
+            const maxY = Math.max(startY, canvasY);
+
+            if (maxX - minX > 20 && maxY - minY > 20) {
+                studioState.cropMargins.left = Math.max(0, Math.min(45, Math.round((minX / cW) * 100)));
+                studioState.cropMargins.right = Math.max(0, Math.min(45, Math.round(((cW - maxX) / cW) * 100)));
+                studioState.cropMargins.top = Math.max(0, Math.min(45, Math.round((minY / cH) * 100)));
+                studioState.cropMargins.bottom = Math.max(0, Math.min(45, Math.round(((cH - maxY) / cH) * 100)));
+
+                syncCropMarginUI();
+                renderStudioCanvas();
+            }
+            return;
+        }
+
+        // 4. Hover Mode: update mouse cursor over handles or box
+        const hit = hitTestFreeChop(canvasX, canvasY, cW, cH, studioState.cropMargins, cW / rect.width);
+        studioCanvas.style.cursor = hit.cursor;
+    }
+
+    function handleFreeChopPointerUp() {
+        studioState.freeChop.draggingHandle = null;
+        studioState.freeChop.isMovingBox = false;
+        studioState.freeChop.isDrawingBox = false;
+    }
+
     function handleCanvasPointerDown(e) {
         if (!studioState.sourceImg || !studioCanvas) return;
 
         const activeTabContent = document.querySelector('.studio-tab-content.active');
+        const isChopFreeTab = activeTabContent && activeTabContent.id === 'tabContentChopFree';
+        const isFreeCut = isChopFreeTab && studioState.cropShape === 'freecut';
+        const isFreeChop = isChopFreeTab && studioState.cropShape !== 'freecut';
+
+        if (isFreeCut) {
+            handleFreeCutPointerDown(e);
+            return;
+        }
+
+        if (isFreeChop) {
+            handleFreeChopPointerDown(e);
+            return;
+        }
+
         const isTextTab = activeTabContent && activeTabContent.id === 'tabContentText';
         const hasText = studioState.text.content && studioState.text.content.trim().length > 0;
 
@@ -2141,6 +3642,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleCanvasPointerMove(e) {
+        if (studioState.cropShape === 'freecut' && studioState.freecut.isDrawing) {
+            handleFreeCutPointerMove(e);
+            return;
+        }
+
+        const activeTabContent = document.querySelector('.studio-tab-content.active');
+        const isChopFreeTab = activeTabContent && activeTabContent.id === 'tabContentChopFree';
+        const isFreeChop = isChopFreeTab && studioState.cropShape !== 'freecut';
+
+        if (isFreeChop) {
+            handleFreeChopPointerMove(e);
+            return;
+        }
+
         if (studioState.isDraggingText) {
             updateTextPositionFromEvent(e);
             return;
@@ -2202,7 +3717,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const croppedW = Math.max(30, ratioW - mLeft - mRight);
         const croppedH = Math.max(30, ratioH - mTop - mBottom);
 
-        const zoom = Math.max(1.0, Math.min(3.0, (studioState.cropZoom || 100) / 100));
+        const zoom = Math.max(0.1, Math.min(3.0, (studioState.cropZoom || 100) / 100));
         const drawW = Math.round((isSideways ? origH : origW) * zoom);
         const drawH = Math.round((isSideways ? origW : origH) * zoom);
 
@@ -2245,13 +3760,24 @@ document.addEventListener('DOMContentLoaded', () => {
         renderStudioCanvas();
     }
 
-    function handleCanvasPointerUp() {
+    function handleCanvasPointerUp(e) {
+        if (studioState.cropShape === 'freecut' && studioState.freecut.isDrawing) {
+            handleFreeCutPointerUp(e);
+        }
+
+        const activeTabContent = document.querySelector('.studio-tab-content.active');
+        const isChopFreeTab = activeTabContent && activeTabContent.id === 'tabContentChopFree';
+        if (isChopFreeTab && studioState.cropShape !== 'freecut') {
+            handleFreeChopPointerUp();
+        }
+
         studioState.isDraggingText = false;
         studioState.isDraggingOverlay = false;
         studioState.isPanningPhoto = false;
         if (studioCanvas) {
             studioCanvas.classList.remove('is-dragging');
             studioCanvas.classList.remove('is-panning');
+            studioCanvas.style.cursor = '';
         }
     }
 
@@ -2320,11 +3846,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const delta = e.deltaY < 0 ? 8 : -8;
             const currentZoom = studioState.cropZoom || 100;
-            const newZoom = Math.max(100, Math.min(300, currentZoom + delta));
-            studioState.cropZoom = newZoom;
-            if (rangeCropZoom) rangeCropZoom.value = newZoom;
-            if (valCropZoom) valCropZoom.textContent = `${newZoom}%`;
-            renderStudioCanvas();
+            setCropZoom(currentZoom + delta);
         }, { passive: false });
     }
 
@@ -2333,6 +3855,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnStudioApply.addEventListener('click', () => {
             if (!studioCanvas) return;
 
+            renderStudioCanvas({ exportMode: true });
             const editedDataUrl = studioCanvas.toDataURL('image/png');
 
             if (studioState.mode === 'original') {
@@ -2349,9 +3872,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } else if (studioState.mode === 'result') {
                 if (processedResultImg) processedResultImg.src = editedDataUrl;
+                const isInsideCutout = studioState.cutoutType === 'inside';
                 if (btnDownload) {
                     btnDownload.href = editedDataUrl;
-                    btnDownload.download = 'no-bg-edited.png';
+                    btnDownload.download = isInsideCutout ? 'removed-inside-edited.png' : 'no-bg-edited.png';
                 }
             }
 
@@ -2364,9 +3888,15 @@ document.addEventListener('DOMContentLoaded', () => {
         btnStudioDownload.addEventListener('click', () => {
             if (!studioCanvas) return;
 
+            renderStudioCanvas({ exportMode: true });
             const downloadUrl = studioCanvas.toDataURL('image/png');
+            renderStudioCanvas();
+
             const link = document.createElement('a');
-            const defaultName = studioState.mode === 'result' ? 'no-bg-edited.png' : 'edited-image.png';
+            const isInsideCutout = studioState.cutoutType === 'inside';
+            const defaultName = studioState.mode === 'result' 
+                ? (isInsideCutout ? 'removed-inside-edited.png' : 'no-bg-edited.png') 
+                : 'edited-image.png';
             link.download = defaultName;
             link.href = downloadUrl;
             document.body.appendChild(link);

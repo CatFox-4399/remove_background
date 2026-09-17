@@ -15,6 +15,7 @@ require_once __DIR__ . '/../config.php';
 // 1. Retrieve and validate ID parameter
 $id = $_GET['id'] ?? '';
 $isPreview = isset($_GET['preview']) && ($_GET['preview'] === '1' || $_GET['preview'] === 'true');
+$isInside = isset($_GET['mode']) && $_GET['mode'] === 'inside';
 
 // Identifier must be exactly 32 hexadecimal characters
 if (empty($id) || !preg_match('/^[a-f0-9]{32}$/i', $id)) {
@@ -25,8 +26,16 @@ if (empty($id) || !preg_match('/^[a-f0-9]{32}$/i', $id)) {
 }
 
 // 2. Prevent directory traversal and locate file inside OUTPUT_DIR
-$safeFileName = basename($id) . '.png';
+$safeFileName = basename($id) . ($isInside ? '_inside.png' : '.png');
 $filePath = OUTPUT_DIR . $safeFileName;
+$downloadFilename = $isInside ? 'removed-inside.png' : 'no-bg.png';
+
+// Fallback: If inside file is requested but doesn't exist, fall back to standard result
+if ($isInside && (!is_file($filePath) || !file_exists($filePath))) {
+    $safeFileName = basename($id) . '.png';
+    $filePath = OUTPUT_DIR . $safeFileName;
+    $downloadFilename = 'no-bg.png';
+}
 
 // Ensure file exists and is a regular file
 if (!is_file($filePath) || !file_exists($filePath)) {
@@ -70,12 +79,12 @@ header('X-Content-Type-Options: nosniff');
 
 if ($isPreview) {
     // Render inline for browser image preview
-    header('Content-Disposition: inline; filename="no-bg.png"');
+    header('Content-Disposition: inline; filename="' . $downloadFilename . '"');
     header('Cache-Control: private, max-age=3600');
 } else {
-    // Force download with exact filename "no-bg.png"
+    // Force download with exact filename
     header('Content-Description: File Transfer');
-    header('Content-Disposition: attachment; filename="no-bg.png"');
+    header('Content-Disposition: attachment; filename="' . $downloadFilename . '"');
     header('Content-Transfer-Encoding: binary');
     header('Expires: 0');
     header('Cache-Control: must-revalidate, post-check=0, pre-check=0');

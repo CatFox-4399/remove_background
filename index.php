@@ -27,6 +27,11 @@ require_once __DIR__ . '/includes/languages.php';
     <link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
 
+    <!-- Google Fonts for Image Studio Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Caveat:wght@600;700&family=Cinzel:wght@600;800&family=Dancing+Script:wght@600;700&family=Great+Vibes&family=Inter:wght@400;600;800&family=Lobster&family=Montserrat:wght@400;700;900&family=Orbitron:wght@600;800&family=Outfit:wght@400;600;800&family=Pacifico&family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Poppins:wght@400;600;800&family=Press+Start+2P&family=Righteous&display=swap" rel="stylesheet">
+
     <!-- Stylesheets -->
     <link rel="stylesheet" href="assets/css/style.css?v=<?php echo filemtime(__DIR__ . '/assets/css/style.css'); ?>">
 </head>
@@ -179,6 +184,37 @@ require_once __DIR__ . '/includes/languages.php';
                     </div>
                 </div>
 
+                <!-- Processing Mode Selector (Remove Background vs Remove Inside) -->
+                <div class="mode-selection-panel">
+                    <div class="mode-selection-label">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 0 20z"></path></svg>
+                        <span><?php echo htmlspecialchars(t('cutout_mode_title')); ?></span>
+                    </div>
+                    <div class="mode-toggle-grid" role="radiogroup" aria-label="<?php echo htmlspecialchars(t('cutout_mode_title')); ?>">
+                        <button type="button" class="mode-option-btn active" id="btnModeRemoveBg" data-mode="bg" role="radio" aria-checked="true">
+                            <div class="mode-option-top">
+                                <span class="mode-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>
+                                </span>
+                                <span class="mode-title"><?php echo htmlspecialchars(t('mode_remove_bg')); ?></span>
+                                <span class="mode-pill-badge"><?php echo htmlspecialchars(t('mode_remove_bg_badge')); ?></span>
+                            </div>
+                            <p class="mode-desc"><?php echo htmlspecialchars(t('mode_remove_bg_desc')); ?></p>
+                        </button>
+
+                        <button type="button" class="mode-option-btn" id="btnModeRemoveInside" data-mode="inside" role="radio" aria-checked="false">
+                            <div class="mode-option-top">
+                                <span class="mode-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="12" cy="12" r="4" stroke-dasharray="3 3"></circle></svg>
+                                </span>
+                                <span class="mode-title"><?php echo htmlspecialchars(t('mode_remove_inside')); ?></span>
+                                <span class="mode-pill-badge badge-reverse"><?php echo htmlspecialchars(t('mode_remove_inside_badge')); ?></span>
+                            </div>
+                            <p class="mode-desc"><?php echo htmlspecialchars(t('mode_remove_inside_desc')); ?></p>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="preview-cta-bar">
                     <button type="button" id="btnEditOriginal" class="btn-secondary-action btn-studio-trigger" title="<?php echo htmlspecialchars(t('btn_edit_original')); ?>">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -191,7 +227,7 @@ require_once __DIR__ . '/includes/languages.php';
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
                         </svg>
-                        <span><?php echo htmlspecialchars(t('btn_remove_bg')); ?></span>
+                        <span id="btnProcessText"><?php echo htmlspecialchars(t('btn_remove_bg')); ?></span>
                     </button>
                 </div>
             </div>
@@ -210,13 +246,26 @@ require_once __DIR__ . '/includes/languages.php';
             <!-- 4. Result Section -->
             <div id="resultSection" class="result-section" aria-live="polite">
                 <div class="result-header">
-                    <div>
-                        <div class="result-badge">
+                    <div class="result-header-main">
+                        <div class="result-badge" id="resultStatusBadge">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            <span><?php echo htmlspecialchars(t('bg_removed')); ?></span>
+                            <span id="resultBadgeText"><?php echo htmlspecialchars(t('bg_removed')); ?></span>
                         </div>
+                        <p class="preview-filesize" id="resultStatusSub"><?php echo htmlspecialchars(t('png_ready')); ?></p>
                     </div>
-                    <p class="preview-filesize"><?php echo htmlspecialchars(t('png_ready')); ?></p>
+
+                    <!-- Live Cutout Mode Switcher: Instant 0ms toggle between Subject and Background -->
+                    <div class="result-mode-switcher" role="tablist" aria-label="Cutout view mode">
+                        <button type="button" class="result-mode-btn active" id="btnSwitchBg" data-mode="bg" role="tab" aria-selected="true" title="<?php echo htmlspecialchars(t('result_mode_bg')); ?>">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>
+                            <span><?php echo htmlspecialchars(t('result_mode_bg')); ?></span>
+                        </button>
+                        <button type="button" class="result-mode-btn" id="btnSwitchInside" data-mode="inside" role="tab" aria-selected="false" title="<?php echo htmlspecialchars(t('result_mode_inside')); ?>">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="12" cy="12" r="4" stroke-dasharray="2 2"></circle></svg>
+                            <span><?php echo htmlspecialchars(t('result_mode_inside')); ?></span>
+                            <span class="switcher-new-tag">REVERSE</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Side-by-Side (Desktop) / Stacked (Mobile) Comparison Grid -->
@@ -271,7 +320,7 @@ require_once __DIR__ . '/includes/languages.php';
                             <polyline points="7 10 12 15 17 10"></polyline>
                             <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
-                        <span><?php echo htmlspecialchars(t('download_png')); ?></span>
+                        <span id="btnDownloadText"><?php echo htmlspecialchars(t('download_png')); ?></span>
                     </a>
                 </div>
             </div>
@@ -299,6 +348,19 @@ require_once __DIR__ . '/includes/languages.php';
                     <div class="studio-canvas-area">
                         <div class="studio-canvas-wrapper canvas-checkerboard" id="studioCanvasWrapper">
                             <canvas id="studioCanvas"></canvas>
+                        </div>
+                        <!-- Sleek Floating Canvas Zoom Control -->
+                        <div class="canvas-floating-zoom" id="canvasFloatingZoom" role="toolbar" aria-label="Canvas Zoom">
+                            <button type="button" class="floating-zoom-btn" id="btnFloatingZoomOut" title="<?php echo htmlspecialchars(t('zoom_out')); ?>">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            </button>
+                            <span class="floating-zoom-badge" id="floatingZoomBadge">100%</span>
+                            <button type="button" class="floating-zoom-btn" id="btnFloatingZoomIn" title="<?php echo htmlspecialchars(t('zoom_in')); ?>">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            </button>
+                            <button type="button" class="floating-zoom-btn floating-zoom-reset" id="btnFloatingZoomReset" title="<?php echo htmlspecialchars(t('zoom_reset')); ?>">
+                                100%
+                            </button>
                         </div>
                     </div>
 
@@ -403,9 +465,28 @@ require_once __DIR__ . '/includes/languages.php';
                                 <div class="crop-margin-item" style="margin-bottom: 0.85rem;">
                                     <div class="slider-header">
                                         <span><?php echo htmlspecialchars(t('pan_zoom')); ?></span>
-                                        <span id="valCropZoom">100%</span>
+                                        <div class="zoom-header-actions">
+                                            <span id="valCropZoom">100%</span>
+                                            <button type="button" class="btn-zoom-reset-pill" id="btnResetZoom" title="<?php echo htmlspecialchars(t('zoom_reset')); ?>">100%</button>
+                                        </div>
                                     </div>
-                                    <input type="range" id="rangeCropZoom" min="100" max="300" value="100" class="studio-range">
+                                    <div class="zoom-stepper-container">
+                                        <button type="button" class="btn-zoom-step" id="btnZoomOut" title="<?php echo htmlspecialchars(t('zoom_out')); ?>">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        </button>
+                                        <input type="range" id="rangeCropZoom" min="10" max="300" value="100" class="studio-range">
+                                        <button type="button" class="btn-zoom-step" id="btnZoomIn" title="<?php echo htmlspecialchars(t('zoom_in')); ?>">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        </button>
+                                    </div>
+                                    <div class="zoom-presets-row">
+                                        <button type="button" class="zoom-pill-btn" data-zoom="25">25%</button>
+                                        <button type="button" class="zoom-pill-btn" data-zoom="50">50%</button>
+                                        <button type="button" class="zoom-pill-btn" data-zoom="75">75%</button>
+                                        <button type="button" class="zoom-pill-btn active" data-zoom="100">100%</button>
+                                        <button type="button" class="zoom-pill-btn" data-zoom="150">150%</button>
+                                        <button type="button" class="zoom-pill-btn" data-zoom="200">200%</button>
+                                    </div>
                                 </div>
                                 <div class="crop-pan-sliders">
                                     <div class="crop-margin-item">
@@ -483,8 +564,8 @@ require_once __DIR__ . '/includes/languages.php';
                         <!-- Tab 3: Color Filters & Adjustments -->
                         <div class="studio-tab-content" id="tabContentFilters">
                             <p class="studio-panel-label"><?php echo htmlspecialchars(t('tab_filters')); ?></p>
-                            <!-- Filter Preset Badges -->
-                            <div class="filter-pills-grid">
+                            <!-- Filter Preset Badges (Expanded with 10+ New Aesthetic Presets) -->
+                            <div class="filter-pills-grid filter-pills-expanded">
                                 <button type="button" class="filter-pill active" data-filter="normal"><?php echo htmlspecialchars(t('filter_normal')); ?></button>
                                 <button type="button" class="filter-pill" data-filter="vivid"><?php echo htmlspecialchars(t('filter_vivid')); ?></button>
                                 <button type="button" class="filter-pill" data-filter="bw"><?php echo htmlspecialchars(t('filter_bw')); ?></button>
@@ -493,6 +574,108 @@ require_once __DIR__ . '/includes/languages.php';
                                 <button type="button" class="filter-pill" data-filter="warm"><?php echo htmlspecialchars(t('filter_warm')); ?></button>
                                 <button type="button" class="filter-pill" data-filter="cool"><?php echo htmlspecialchars(t('filter_cool')); ?></button>
                                 <button type="button" class="filter-pill" data-filter="contrast"><?php echo htmlspecialchars(t('filter_contrast')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="cyberpunk"><?php echo htmlspecialchars(t('filter_cyberpunk')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="noir"><?php echo htmlspecialchars(t('filter_noir')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="golden"><?php echo htmlspecialchars(t('filter_golden')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="cinema"><?php echo htmlspecialchars(t('filter_cinema')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="pastel"><?php echo htmlspecialchars(t('filter_pastel')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="retro"><?php echo htmlspecialchars(t('filter_retro')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="emerald"><?php echo htmlspecialchars(t('filter_emerald')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="lilac"><?php echo htmlspecialchars(t('filter_lilac')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="invert"><?php echo htmlspecialchars(t('filter_invert')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="popart"><?php echo htmlspecialchars(t('filter_popart')); ?></button>
+                                <button type="button" class="filter-pill" data-filter="nordic"><?php echo htmlspecialchars(t('filter_nordic')); ?></button>
+                            </div>
+
+                            <!-- Picture Transparency / Opacity Control -->
+                            <div class="text-effect-card" style="margin-top: 0.5rem; margin-bottom: 1rem;">
+                                <div class="slider-header" style="margin-bottom: 6px;">
+                                    <span class="text-effect-title" style="font-size: 0.8rem;"><?php echo htmlspecialchars(t('pic_opacity_title')); ?></span>
+                                    <span id="valPictureOpacity" style="font-weight: 600; color: #38bdf8;">100%</span>
+                                </div>
+                                <input type="range" id="rangePictureOpacity" min="5" max="100" value="100" class="studio-range" style="margin-bottom: 10px;">
+                                <div class="edge-blur-presets-grid">
+                                    <button type="button" class="edge-preset-btn pic-op-btn active" data-opacity="100"><?php echo htmlspecialchars(t('pic_opacity_solid')); ?></button>
+                                    <button type="button" class="edge-preset-btn pic-op-btn" data-opacity="75"><?php echo htmlspecialchars(t('pic_opacity_75')); ?></button>
+                                    <button type="button" class="edge-preset-btn pic-op-btn" data-opacity="50"><?php echo htmlspecialchars(t('pic_opacity_semi')); ?></button>
+                                    <button type="button" class="edge-preset-btn pic-op-btn" data-opacity="25"><?php echo htmlspecialchars(t('pic_opacity_faint')); ?></button>
+                                </div>
+                            </div>
+
+                            <!-- Picture & Cutout Drop Shadow Card -->
+                            <div class="text-effect-card" style="margin-bottom: 1.25rem;">
+                                <div class="text-effect-header">
+                                    <span class="text-effect-title"><?php echo htmlspecialchars(t('shadow_title')); ?></span>
+                                    <button type="button" class="effect-toggle-btn" id="btnCutoutShadow" title="<?php echo htmlspecialchars(t('shadow_title')); ?>">
+                                        <span class="toggle-indicator"></span>
+                                        <span class="toggle-status-text" id="statusCutoutShadow">OFF</span>
+                                    </button>
+                                </div>
+                                <div class="text-effect-body" id="cutoutShadowBody" style="display: none;">
+                                    <!-- Quick Presets -->
+                                    <div class="shadow-presets-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px;">
+                                        <button type="button" class="edge-preset-btn shadow-preset-btn active" data-preset="soft"><?php echo htmlspecialchars(t('shadow_preset_soft')); ?></button>
+                                        <button type="button" class="edge-preset-btn shadow-preset-btn" data-preset="3d"><?php echo htmlspecialchars(t('shadow_preset_3d')); ?></button>
+                                        <button type="button" class="edge-preset-btn shadow-preset-btn" data-preset="float"><?php echo htmlspecialchars(t('shadow_preset_float')); ?></button>
+                                        <button type="button" class="edge-preset-btn shadow-preset-btn" data-preset="halo"><?php echo htmlspecialchars(t('shadow_preset_halo')); ?></button>
+                                        <button type="button" class="edge-preset-btn shadow-preset-btn" data-preset="ground"><?php echo htmlspecialchars(t('shadow_preset_ground')); ?></button>
+                                        <button type="button" class="edge-preset-btn shadow-preset-btn" data-preset="custom">Custom</button>
+                                    </div>
+
+                                    <!-- Shadow Color Picker -->
+                                    <div class="text-control-field" style="margin-bottom: 8px;">
+                                        <div class="slider-header" style="margin-bottom: 6px;">
+                                            <span><?php echo htmlspecialchars(t('shadow_color')); ?></span>
+                                            <label class="custom-color-badge" for="inputShadowColor" title="<?php echo htmlspecialchars(t('custom_color')); ?>">
+                                                <span class="rainbow-dot"></span>
+                                                <span class="badge-text"><?php echo htmlspecialchars(t('custom_color')); ?></span>
+                                                <span class="hex-value" id="hexShadowColor">#000000</span>
+                                            </label>
+                                        </div>
+                                        <div class="color-picker-row">
+                                            <div class="color-input-wrapper" title="<?php echo htmlspecialchars(t('custom_color')); ?>">
+                                                <input type="color" id="inputShadowColor" value="#000000" class="studio-color-input">
+                                            </div>
+                                            <div class="swatch-list swatch-palette-grid">
+                                                <?php
+                                                $shadowSwatches = ['#000000', '#1e293b', '#334155', '#475569', '#0f172a', '#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899', '#f59e0b'];
+                                                foreach ($shadowSwatches as $hex): ?>
+                                                    <button type="button" class="swatch-btn swatch-shadow<?php echo $hex === '#000000' ? ' active' : ''; ?>" data-color="<?php echo $hex; ?>" style="background:<?php echo $hex; ?>;<?php echo ($hex === '#000000' || $hex === '#1e293b' || $hex === '#0f172a') ? ' border: 1px solid #475569;' : ''; ?>" title="<?php echo $hex; ?>"></button>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Shadow Sliders -->
+                                    <div class="slider-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('shadow_blur')); ?></span>
+                                            <span id="valShadowBlur">20px</span>
+                                        </div>
+                                        <input type="range" id="rangeShadowBlur" min="0" max="60" value="20" class="studio-range">
+                                    </div>
+                                    <div class="slider-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('shadow_opacity')); ?></span>
+                                            <span id="valShadowOpacity">60%</span>
+                                        </div>
+                                        <input type="range" id="rangeShadowOpacity" min="10" max="100" value="60" class="studio-range">
+                                    </div>
+                                    <div class="slider-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('shadow_offset_x')); ?></span>
+                                            <span id="valShadowOffsetX">+10px</span>
+                                        </div>
+                                        <input type="range" id="rangeShadowOffsetX" min="-50" max="50" value="10" class="studio-range">
+                                    </div>
+                                    <div class="slider-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('shadow_offset_y')); ?></span>
+                                            <span id="valShadowOffsetY">+15px</span>
+                                        </div>
+                                        <input type="range" id="rangeShadowOffsetY" min="-50" max="50" value="15" class="studio-range">
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Sliders -->
@@ -517,6 +700,13 @@ require_once __DIR__ . '/includes/languages.php';
                                         <span id="valSaturation">0%</span>
                                     </div>
                                     <input type="range" id="rangeSaturation" min="-50" max="50" value="0" class="studio-range">
+                                </div>
+                                <div class="slider-item">
+                                    <div class="slider-header">
+                                        <span><?php echo htmlspecialchars(t('hue_rotate')); ?></span>
+                                        <span id="valHueRotate">0°</span>
+                                    </div>
+                                    <input type="range" id="rangeHueRotate" min="-180" max="180" value="0" class="studio-range">
                                 </div>
                             </div>
                         </div>
@@ -550,44 +740,163 @@ require_once __DIR__ . '/includes/languages.php';
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                                     <span><?php echo htmlspecialchars(t('shape_star')); ?></span>
                                 </button>
+                                <button type="button" class="shape-btn" data-shape="freecut" id="btnShapeFreeCut" title="<?php echo htmlspecialchars(t('shape_freecut')); ?>">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><path d="M8.12 8.12 12 12"></path><path d="M20 4 8.12 15.88"></path><circle cx="6" cy="18" r="3"></circle><path d="M14.8 14.8 20 20"></path></svg>
+                                    <span><?php echo htmlspecialchars(t('shape_freecut')); ?></span>
+                                </button>
                             </div>
 
-                            <!-- Freeform Chop Margin Sliders -->
-                            <p class="studio-panel-label" style="margin-top: 14px;"><?php echo htmlspecialchars(t('free_crop_label')); ?></p>
-                            <div class="crop-margins-grid">
-                                <div class="crop-margin-item">
-                                    <div class="slider-header">
-                                        <span><?php echo htmlspecialchars(t('crop_top')); ?></span>
-                                        <span id="valCropTop">0%</span>
-                                    </div>
-                                    <input type="range" id="rangeCropTop" min="0" max="45" value="0" class="studio-range">
+                            <!-- Interactive Free Cutout Toolbar Panel -->
+                            <div id="freeCutToolbar" class="freecut-toolbar-panel" style="display: none; margin-top: 14px; background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: var(--radius-md); padding: 12px;">
+                                <div class="freecut-toolbar-header" style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span class="text-effect-title" style="font-size: 0.8rem; color: #38bdf8;"><?php echo htmlspecialchars(t('freecut_toolbar_title')); ?></span>
+                                    <span class="freecut-points-badge" style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; border-radius: 9999px; padding: 2px 8px; font-size: 0.72rem; color: #38bdf8; font-weight: 600;"><span id="valFreeCutPoints">0</span> <?php echo htmlspecialchars(t('freecut_points_count')); ?></span>
                                 </div>
-                                <div class="crop-margin-item">
-                                    <div class="slider-header">
-                                        <span><?php echo htmlspecialchars(t('crop_bottom')); ?></span>
-                                        <span id="valCropBottom">0%</span>
-                                    </div>
-                                    <input type="range" id="rangeCropBottom" min="0" max="45" value="0" class="studio-range">
+                                <div class="freecut-mode-toggle" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0;">
+                                    <button type="button" class="edge-preset-btn freecut-mode-btn active" id="btnFreeCutModeLasso" data-mode="lasso" data-hint="<?php echo htmlspecialchars(t('freecut_hint_lasso')); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="3"/></svg>
+                                        <span><?php echo htmlspecialchars(t('freecut_mode_lasso')); ?></span>
+                                    </button>
+                                    <button type="button" class="edge-preset-btn freecut-mode-btn" id="btnFreeCutModePolygon" data-mode="polygon" data-hint="<?php echo htmlspecialchars(t('freecut_hint_polygon')); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 22 22 22"/></svg>
+                                        <span><?php echo htmlspecialchars(t('freecut_mode_polygon')); ?></span>
+                                    </button>
                                 </div>
-                                <div class="crop-margin-item">
-                                    <div class="slider-header">
-                                        <span><?php echo htmlspecialchars(t('crop_left')); ?></span>
-                                        <span id="valCropLeft">0%</span>
-                                    </div>
-                                    <input type="range" id="rangeCropLeft" min="0" max="45" value="0" class="studio-range">
+                                <div class="freecut-actions-row" style="display: flex; gap: 6px; margin-top: 6px;">
+                                    <button type="button" class="btn-thumb-change" id="btnFreeCutFinish" style="flex: 1; padding: 8px 6px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span><?php echo htmlspecialchars(t('freecut_finish')); ?></span>
+                                    </button>
+                                    <button type="button" class="btn-clear" id="btnFreeCutUndo" style="padding: 8px 10px; font-size: 0.78rem;">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                        <span><?php echo htmlspecialchars(t('freecut_undo')); ?></span>
+                                    </button>
+                                    <button type="button" class="btn-thumb-remove" id="btnFreeCutReset" style="padding: 8px 10px; font-size: 0.78rem;">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                        <span><?php echo htmlspecialchars(t('freecut_reset')); ?></span>
+                                    </button>
                                 </div>
-                                <div class="crop-margin-item">
-                                    <div class="slider-header">
-                                        <span><?php echo htmlspecialchars(t('crop_right')); ?></span>
-                                        <span id="valCropRight">0%</span>
+                                <p class="drag-hint-box" id="freeCutHint" style="margin-top: 8px; font-size: 0.76rem; padding: 6px 10px;">
+                                    <?php echo htmlspecialchars(t('freecut_hint_lasso')); ?>
+                                </p>
+                            </div>
+
+                            <!-- Sticker Outline / Shape Border Stroke Controls -->
+                            <div class="text-effect-card" style="margin-top: 14px;">
+                                <div class="text-effect-header">
+                                    <span class="text-effect-title"><?php echo htmlspecialchars(t('shape_stroke_title')); ?></span>
+                                    <button type="button" class="effect-toggle-btn" id="btnShapeStroke" title="<?php echo htmlspecialchars(t('shape_stroke_title')); ?>">
+                                        <span class="toggle-indicator"></span>
+                                        <span class="toggle-status-text" id="statusShapeStroke">OFF</span>
+                                    </button>
+                                </div>
+                                <div class="text-effect-body" id="shapeStrokeBody" style="display: none;">
+                                    <!-- Stroke Styles: Solid, Dashed, Dotted, Double -->
+                                    <div class="stroke-style-group" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;">
+                                        <button type="button" class="edge-preset-btn shape-stroke-style-btn active" data-style="solid"><?php echo htmlspecialchars(t('stroke_solid')); ?></button>
+                                        <button type="button" class="edge-preset-btn shape-stroke-style-btn" data-style="dashed"><?php echo htmlspecialchars(t('stroke_dashed')); ?></button>
+                                        <button type="button" class="edge-preset-btn shape-stroke-style-btn" data-style="dotted"><?php echo htmlspecialchars(t('stroke_dotted')); ?></button>
+                                        <button type="button" class="edge-preset-btn shape-stroke-style-btn" data-style="double"><?php echo htmlspecialchars(t('stroke_double')); ?></button>
                                     </div>
-                                    <input type="range" id="rangeCropRight" min="0" max="45" value="0" class="studio-range">
+
+                                    <!-- Stroke Color Picker -->
+                                    <div class="text-control-field" style="margin-top: 6px; margin-bottom: 6px;">
+                                        <div class="slider-header" style="margin-bottom: 6px;">
+                                            <span><?php echo htmlspecialchars(t('shape_stroke_color')); ?></span>
+                                            <label class="custom-color-badge" for="inputShapeStrokeColor" title="<?php echo htmlspecialchars(t('custom_color')); ?>">
+                                                <span class="rainbow-dot"></span>
+                                                <span class="badge-text"><?php echo htmlspecialchars(t('custom_color')); ?></span>
+                                                <span class="hex-value" id="hexShapeStrokeColor">#ffffff</span>
+                                            </label>
+                                        </div>
+                                        <div class="color-picker-row">
+                                            <div class="color-input-wrapper" title="<?php echo htmlspecialchars(t('custom_color')); ?>">
+                                                <input type="color" id="inputShapeStrokeColor" value="#ffffff" class="studio-color-input">
+                                            </div>
+                                            <div class="swatch-list swatch-palette-grid">
+                                                <?php
+                                                $strokeSwatches = ['#ffffff', '#000000', '#38bdf8', '#ef4444', '#facc15', '#22c55e', '#a855f7', '#ec4899', '#f97316', '#64748b'];
+                                                foreach ($strokeSwatches as $hex): ?>
+                                                    <button type="button" class="swatch-btn swatch-shape-stroke<?php echo $hex === '#ffffff' ? ' active' : ''; ?>" data-color="<?php echo $hex; ?>" style="background:<?php echo $hex; ?>;<?php echo ($hex === '#000000') ? ' border: 1px solid #475569;' : ($hex === '#ffffff' ? ' border: 1px solid rgba(255,255,255,0.4);' : ''); ?>" title="<?php echo $hex; ?>"></button>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="slider-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('shape_stroke_width')); ?></span>
+                                            <span id="valShapeStrokeWidth">6px</span>
+                                        </div>
+                                        <input type="range" id="rangeShapeStrokeWidth" min="1" max="30" value="6" class="studio-range">
+                                    </div>
                                 </div>
                             </div>
-                            <p class="drag-hint-box" style="margin-top: 12px; margin-bottom: 0;">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align: middle; margin-right: 4px;"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>
-                                <span><?php echo htmlspecialchars(t('pan_hint')); ?></span>
-                            </p>
+
+                            <!-- Interactive Free Chop Card -->
+                            <div class="text-effect-card" style="margin-top: 14px;">
+                                <div class="text-effect-header">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>
+                                        <span class="text-effect-title" style="color: #38bdf8;"><?php echo htmlspecialchars(t('free_chop_interactive_title')); ?></span>
+                                    </div>
+                                    <span class="freecut-points-badge" id="badgeFreeChopStatus" style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; border-radius: 9999px; padding: 2px 8px; font-size: 0.72rem; color: #38bdf8; font-weight: 600;">ACTIVE</span>
+                                </div>
+                                <p style="font-size: 0.78rem; color: #94a3b8; margin: 6px 0 10px 0; line-height: 1.4;">
+                                    <?php echo htmlspecialchars(t('free_chop_interactive_desc')); ?>
+                                </p>
+
+                                <div class="freecut-actions-row" style="display: flex; gap: 6px; margin-bottom: 10px;">
+                                    <button type="button" class="btn-clear" id="btnFreeChopSquare" style="flex: 1; padding: 6px 8px; font-size: 0.78rem;">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                                        <span><?php echo htmlspecialchars(t('free_chop_square')); ?></span>
+                                    </button>
+                                    <button type="button" class="btn-clear" id="btnFreeChopFit" style="flex: 1; padding: 6px 8px; font-size: 0.78rem;">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                                        <span><?php echo htmlspecialchars(t('free_chop_fit')); ?></span>
+                                    </button>
+                                    <button type="button" class="btn-thumb-remove" id="btnFreeChopReset" style="padding: 6px 10px; font-size: 0.78rem;">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+                                        <span><?php echo htmlspecialchars(t('free_chop_reset')); ?></span>
+                                    </button>
+                                </div>
+
+                                <!-- Freeform Chop Margin Sliders -->
+                                <p class="slider-header" style="margin-bottom: 6px; font-size: 0.76rem; color: #cbd5e1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"><?php echo htmlspecialchars(t('free_crop_label')); ?></p>
+                                <div class="crop-margins-grid">
+                                    <div class="crop-margin-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('crop_top')); ?></span>
+                                            <span id="valCropTop">0%</span>
+                                        </div>
+                                        <input type="range" id="rangeCropTop" min="0" max="45" value="0" class="studio-range">
+                                    </div>
+                                    <div class="crop-margin-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('crop_bottom')); ?></span>
+                                            <span id="valCropBottom">0%</span>
+                                        </div>
+                                        <input type="range" id="rangeCropBottom" min="0" max="45" value="0" class="studio-range">
+                                    </div>
+                                    <div class="crop-margin-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('crop_left')); ?></span>
+                                            <span id="valCropLeft">0%</span>
+                                        </div>
+                                        <input type="range" id="rangeCropLeft" min="0" max="45" value="0" class="studio-range">
+                                    </div>
+                                    <div class="crop-margin-item">
+                                        <div class="slider-header">
+                                            <span><?php echo htmlspecialchars(t('crop_right')); ?></span>
+                                            <span id="valCropRight">0%</span>
+                                        </div>
+                                        <input type="range" id="rangeCropRight" min="0" max="45" value="0" class="studio-range">
+                                    </div>
+                                </div>
+                                <p class="drag-hint-box" style="margin-top: 10px; margin-bottom: 0;">
+                                    <span><?php echo htmlspecialchars(t('free_chop_hint')); ?></span>
+                                </p>
+                            </div>
                         </div>
 
                         <!-- Tab 5: [NEW FEATURE] Resize Picture -->
@@ -710,6 +1019,35 @@ require_once __DIR__ . '/includes/languages.php';
                                     <input type="range" id="rangeVignette" min="0" max="100" value="0" class="studio-range">
                                 </div>
 
+                                <!-- Vignette Edge Color Picker & Swatches -->
+                                <div class="text-effect-card" style="margin-bottom: 0.75rem;">
+                                    <div class="text-effect-header">
+                                        <span class="text-effect-title"><?php echo htmlspecialchars(t('vignette_color')); ?></span>
+                                        <label class="custom-color-badge" for="inputVignetteColor" title="<?php echo htmlspecialchars(t('custom_color')); ?>">
+                                            <span class="rainbow-dot"></span>
+                                            <span class="badge-text"><?php echo htmlspecialchars(t('custom_color')); ?></span>
+                                            <span class="hex-value" id="hexVignetteColor">#000000</span>
+                                        </label>
+                                    </div>
+                                    <div class="color-picker-row">
+                                        <div class="color-input-wrapper" title="<?php echo htmlspecialchars(t('custom_color')); ?>">
+                                            <input type="color" id="inputVignetteColor" value="#000000" class="studio-color-input">
+                                        </div>
+                                        <div class="swatch-list swatch-palette-grid">
+                                            <?php
+                                            $vignetteSwatches = [
+                                                '#000000', '#1e293b', '#ffffff', '#fef3c7',
+                                                '#78350f', '#451a03', '#0f172a', '#1e1b4b',
+                                                '#4c0519', '#881337', '#064e3b', '#3b0764',
+                                                '#083344', '#dc2626', '#8b5cf6', '#0ea5e9'
+                                            ];
+                                            foreach ($vignetteSwatches as $hex): ?>
+                                                <button type="button" class="swatch-btn swatch-vignette<?php echo $hex === '#000000' ? ' active' : ''; ?>" data-color="<?php echo $hex; ?>" style="background:<?php echo $hex; ?>;<?php echo ($hex === '#000000' || $hex === '#0f172a' || $hex === '#1e293b') ? ' border: 1px solid #475569;' : ($hex === '#ffffff' || $hex === '#fef3c7' ? ' border: 1px solid rgba(255,255,255,0.4);' : ''); ?>" title="<?php echo $hex; ?>"></button>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <button type="button" class="filter-pill" id="btnPresetVignette" style="width: 100%; margin-top: 0.25rem;">
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><circle cx="12" cy="12" r="9"></circle></svg>
                                     <span><?php echo htmlspecialchars(t('filter_vignette')); ?> (60%)</span>
@@ -737,11 +1075,37 @@ require_once __DIR__ . '/includes/languages.php';
                                 <div class="text-control-field">
                                     <label for="selectFontFamily"><?php echo htmlspecialchars(t('font_family')); ?></label>
                                     <select id="selectFontFamily" class="studio-select">
-                                        <option value="sans-serif"><?php echo htmlspecialchars(t('font_sans')); ?></option>
-                                        <option value="serif"><?php echo htmlspecialchars(t('font_serif')); ?></option>
-                                        <option value="Impact, sans-serif"><?php echo htmlspecialchars(t('font_impact')); ?></option>
-                                        <option value="'Brush Script MT', cursive, sans-serif"><?php echo htmlspecialchars(t('font_cursive')); ?></option>
-                                        <option value="'Courier New', monospace"><?php echo htmlspecialchars(t('font_mono')); ?></option>
+                                        <optgroup label="Modern Sans-Serif">
+                                            <option value="'Montserrat', sans-serif"><?php echo htmlspecialchars(t('font_montserrat')); ?></option>
+                                            <option value="'Poppins', sans-serif"><?php echo htmlspecialchars(t('font_poppins')); ?></option>
+                                            <option value="'Outfit', sans-serif"><?php echo htmlspecialchars(t('font_outfit')); ?></option>
+                                            <option value="'Inter', sans-serif"><?php echo htmlspecialchars(t('font_inter')); ?></option>
+                                            <option value="sans-serif"><?php echo htmlspecialchars(t('font_sans')); ?></option>
+                                        </optgroup>
+                                        <optgroup label="Elegant & Classic Serif">
+                                            <option value="'Playfair Display', Georgia, serif"><?php echo htmlspecialchars(t('font_playfair')); ?></option>
+                                            <option value="'Cinzel', serif"><?php echo htmlspecialchars(t('font_cinzel')); ?></option>
+                                            <option value="serif"><?php echo htmlspecialchars(t('font_serif')); ?></option>
+                                        </optgroup>
+                                        <optgroup label="Bold Headlines & Impact">
+                                            <option value="'Bebas Neue', Impact, sans-serif"><?php echo htmlspecialchars(t('font_bebas')); ?></option>
+                                            <option value="'Anton', Impact, sans-serif"><?php echo htmlspecialchars(t('font_anton')); ?></option>
+                                            <option value="Impact, sans-serif"><?php echo htmlspecialchars(t('font_impact')); ?></option>
+                                        </optgroup>
+                                        <optgroup label="Script & Handwriting">
+                                            <option value="'Pacifico', cursive"><?php echo htmlspecialchars(t('font_pacifico')); ?></option>
+                                            <option value="'Dancing Script', cursive"><?php echo htmlspecialchars(t('font_dancing')); ?></option>
+                                            <option value="'Great Vibes', cursive"><?php echo htmlspecialchars(t('font_greatvibes')); ?></option>
+                                            <option value="'Caveat', cursive"><?php echo htmlspecialchars(t('font_caveat')); ?></option>
+                                            <option value="'Lobster', cursive"><?php echo htmlspecialchars(t('font_lobster')); ?></option>
+                                            <option value="'Brush Script MT', cursive, sans-serif"><?php echo htmlspecialchars(t('font_cursive')); ?></option>
+                                        </optgroup>
+                                        <optgroup label="Creative, Display & Pixel">
+                                            <option value="'Righteous', cursive, sans-serif"><?php echo htmlspecialchars(t('font_righteous')); ?></option>
+                                            <option value="'Orbitron', sans-serif"><?php echo htmlspecialchars(t('font_orbitron')); ?></option>
+                                            <option value="'Press Start 2P', monospace"><?php echo htmlspecialchars(t('font_pressstart')); ?></option>
+                                            <option value="'Courier New', monospace"><?php echo htmlspecialchars(t('font_mono')); ?></option>
+                                        </optgroup>
                                     </select>
                                 </div>
 
@@ -831,6 +1195,14 @@ require_once __DIR__ . '/includes/languages.php';
                                             </div>
                                         </div>
                                     </div>
+                                    <!-- Stroke Styles for Word Outline -->
+                                    <div class="stroke-style-group" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 4px; margin-bottom: 8px;">
+                                        <button type="button" class="edge-preset-btn text-stroke-style-btn active" data-style="solid"><?php echo htmlspecialchars(t('stroke_solid')); ?></button>
+                                        <button type="button" class="edge-preset-btn text-stroke-style-btn" data-style="dashed"><?php echo htmlspecialchars(t('stroke_dashed')); ?></button>
+                                        <button type="button" class="edge-preset-btn text-stroke-style-btn" data-style="dotted"><?php echo htmlspecialchars(t('stroke_dotted')); ?></button>
+                                        <button type="button" class="edge-preset-btn text-stroke-style-btn" data-style="double"><?php echo htmlspecialchars(t('stroke_double')); ?></button>
+                                    </div>
+
                                     <div class="text-control-field">
                                         <div class="slider-header">
                                             <span><?php echo htmlspecialchars(t('outline_width')); ?></span>
@@ -883,11 +1255,14 @@ require_once __DIR__ . '/includes/languages.php';
 
                             <!-- Typography & Quick Position -->
                             <div class="text-style-actions" style="margin-top: 14px;">
-                                <button type="button" class="style-toggle-btn active" id="btnTextBold">
+                                <button type="button" class="style-toggle-btn active" id="btnTextBold" title="<?php echo htmlspecialchars(t('text_bold')); ?>">
                                     <b>B</b>
                                 </button>
-                                <button type="button" class="style-toggle-btn" id="btnTextItalic">
+                                <button type="button" class="style-toggle-btn" id="btnTextItalic" title="<?php echo htmlspecialchars(t('text_italic')); ?>">
                                     <i>I</i>
+                                </button>
+                                <button type="button" class="style-toggle-btn" id="btnTextUnderline" title="<?php echo htmlspecialchars(t('text_underline')); ?>">
+                                    <u>U</u>
                                 </button>
                             </div>
 
@@ -1036,6 +1411,10 @@ require_once __DIR__ . '/includes/languages.php';
                         <button type="button" class="btn-clear" id="btnStudioReset">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
                             <span><?php echo htmlspecialchars(t('btn_reset')); ?></span>
+                        </button>
+                        <button type="button" class="btn-secondary-action btn-studio-invert" id="btnStudioInvertCutout" title="<?php echo htmlspecialchars(t('invert_cutout_hint')); ?>">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            <span><?php echo htmlspecialchars(t('btn_invert_cutout')); ?></span>
                         </button>
                     </div>
 
@@ -1187,7 +1566,15 @@ require_once __DIR__ . '/includes/languages.php';
                 failed: <?php echo json_encode(t('js_err_failed')); ?>
             },
             extrudeOn: <?php echo json_encode(t('extrude_on')); ?>,
-            extrudeOff: <?php echo json_encode(t('extrude_off')); ?>
+            extrudeOff: <?php echo json_encode(t('extrude_off')); ?>,
+            btnRemoveBg: <?php echo json_encode(t('btn_remove_bg')); ?>,
+            btnRemoveInside: <?php echo json_encode(t('btn_remove_inside')); ?>,
+            bgRemoved: <?php echo json_encode(t('bg_removed')); ?>,
+            insideRemoved: <?php echo json_encode(t('inside_removed')); ?>,
+            pngReady: <?php echo json_encode(t('png_ready')); ?>,
+            insidePngReady: <?php echo json_encode(t('inside_png_ready')); ?>,
+            downloadPng: <?php echo json_encode(t('download_png')); ?>,
+            downloadInsidePng: <?php echo json_encode(t('download_inside_png')); ?>
         };
     </script>
     <script src="assets/js/app.js?v=<?php echo filemtime(__DIR__ . '/assets/js/app.js'); ?>"></script>

@@ -265,13 +265,80 @@ try {
         send_json_response(false, 'Failed to save processed image on server.');
     }
 
-    // 15. Delete temporary upload file now that processing succeeded
+    // 15. Generate 'Remove Inside' (Reverse cutout: keep background, transparent subject)
+    $hasInside = false;
+    try {
+        if (extension_loaded('gd') && file_exists($uploadDestination)) {
+            $origImg = @imagecreatefromstring(file_get_contents($uploadDestination));
+            $cutoutImg = @imagecreatefromstring($pngData);
+
+            if ($origImg !== false && $cutoutImg !== false) {
+                $w = imagesx($cutoutImg);
+                $h = imagesy($cutoutImg);
+
+                // Scale original image if dimensions differ from cutout
+                $origW = imagesx($origImg);
+                $origH = imagesy($origImg);
+                if ($origW !== $w || $origH !== $h) {
+                    $scaledOrig = imagecreatetruecolor($w, $h);
+                    imagesavealpha($scaledOrig, true);
+                    imagealphablending($scaledOrig, false);
+                    $transColor = imagecolorallocatealpha($scaledOrig, 0, 0, 0, 127);
+                    imagefill($scaledOrig, 0, 0, $transColor);
+                    imagecopyresampled($scaledOrig, $origImg, 0, 0, 0, 0, $w, $h, $origW, $origH);
+                    imagedestroy($origImg);
+                    $origImg = $scaledOrig;
+                }
+
+                $insideImg = imagecreatetruecolor($w, $h);
+                imagesavealpha($insideImg, true);
+                imagealphablending($insideImg, false);
+                $transColor = imagecolorallocatealpha($insideImg, 0, 0, 0, 127);
+                imagefill($insideImg, 0, 0, $transColor);
+
+                for ($y = 0; $y < $h; $y++) {
+                    for ($x = 0; $x < $w; $x++) {
+                        $rgbaCut = imagecolorat($cutoutImg, $x, $y);
+                        $alphaCut = ($rgbaCut >> 24) & 0x7F; // 0 = opaque in GD, 127 = transparent in GD
+                        
+                        $rgbaOrig = imagecolorat($origImg, $x, $y);
+                        $r = ($rgbaOrig >> 16) & 0xFF;
+                        $g = ($rgbaOrig >> 8) & 0xFF;
+                        $b = $rgbaOrig & 0xFF;
+                        $alphaOrig = ($rgbaOrig >> 24) & 0x7F;
+
+                        // Invert mask: subject (alphaCut=0) -> transparent (127); background (alphaCut=127) -> opaque (0)
+                        $invertedAlpha = 127 - $alphaCut;
+                        $finalAlpha = max($alphaOrig, $invertedAlpha);
+
+                        $pixelColor = imagecolorallocatealpha($insideImg, $r, $g, $b, $finalAlpha);
+                        imagesetpixel($insideImg, $x, $y, $pixelColor);
+                    }
+                }
+
+                $insideOutputFilePath = OUTPUT_DIR . $resultId . '_inside.png';
+                if (imagepng($insideImg, $insideOutputFilePath, 6)) {
+                    $hasInside = true;
+                }
+
+                imagedestroy($insideImg);
+                imagedestroy($cutoutImg);
+                imagedestroy($origImg);
+            }
+        }
+    } catch (\Throwable $e) {
+        // Continue gracefully even if reverse mask generation fails
+        error_log('Inside removal generation error: ' . $e->getMessage());
+    }
+
+    // 16. Delete temporary upload file now that processing succeeded
     $cleanupUpload();
 
-    // 16. Return safe result identifier
+    // 17. Return safe result identifier
     http_response_code(200);
     send_json_response(true, 'Background removed successfully.', [
-        'result' => $resultId
+        'result' => $resultId,
+        'has_inside' => $hasInside
     ]);
 
 } catch (\Throwable $e) {
